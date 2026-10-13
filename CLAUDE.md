@@ -40,7 +40,7 @@ via `window.fnName = fnName`.
 ## Workflow conventions
 
 - All development happens on branch `claude/elderly-app-file-linking-h00643`
-  against this repo (`limicap/elder-experience`).
+  against this repo (`kohi-ssai/elder-experience`).
 - The user's merge-trigger is the literal word **"반영"** — do not merge a PR
   until they say it, even after describing/testing the change.
 - Lifecycle per change: implement → verify with Playwright (headless
