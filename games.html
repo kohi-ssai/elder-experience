@@ -66,6 +66,10 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
 .hintbar{background:rgba(22,163,74,.14);border:1px solid rgba(22,163,74,.45);color:#4ade80;font-size:11.5px;font-weight:700;text-align:center;padding:6px 8px;border-radius:8px;margin-top:5px;}
 .garea{flex:1;position:relative;overflow:hidden;display:flex;align-items:stretch;}
 #visOverlay{position:absolute;inset:0;z-index:80;pointer-events:none;}
+#loupeFab{position:absolute;right:14px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:120;display:none;align-items:center;gap:6px;
+  background:rgba(15,23,42,.88);color:#fff;border:2px solid rgba(255,255,255,.4);border-radius:24px;padding:11px 16px;
+  font-family:inherit;font-size:14px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.4);cursor:pointer;}
+#loupeFab.on{background:#f59e0b;border-color:#fcd34d;color:#1c1300;}
 .vov{position:absolute;inset:0;opacity:0;transition:opacity .2s;}
 #voHaze{background:rgba(230,222,200,0.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:opacity .2s, background .2s;}
 #voGlare{mix-blend-mode:screen;}
@@ -160,7 +164,7 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
 .kiosk-mission-card{border:3px solid #fbbf24;border-radius:14px;background:rgba(251,191,36,.14);padding:8px 12px;text-align:center;
   animation:kmPulse .9s ease-in-out 4, kmGlow 2.4s ease-in-out 3.6s infinite;}
 .kiosk-mission-card .km-lbl{color:#fde68a;font-size:12.5px;font-weight:800;letter-spacing:.02em;}
-.kiosk-mission-card .km-txt{color:#fff;font-size:17px;font-weight:900;line-height:1.45;margin-top:2px;}
+.kiosk-mission-card .km-txt{color:#fff;font-size:17px;font-weight:900;line-height:1.45;margin-top:2px;word-break:keep-all;letter-spacing:-.02em;} /* 단어 중간에서 줄이 바뀌지 않게 */
 @keyframes kmPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(251,191,36,.7);}50%{transform:scale(1.05);box-shadow:0 0 0 8px rgba(251,191,36,0);}}
 @keyframes kmGlow{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,0);}50%{box-shadow:0 0 14px 2px rgba(251,191,36,.55);}}
 .kiosk-drink-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
@@ -242,8 +246,8 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
   </filter>
   <!-- 노안: 상이 한 점에 맺히지 못해 글자 획이 여러 겹으로 어긋나 겹쳐 보인다(뿌연 안개 아님) -->
   <filter id="presbyFilter" x="-5%" y="-5%" width="110%" height="110%">
-    <feOffset in="SourceGraphic" dx="4" dy="3" result="o1"/>
-    <feOffset in="SourceGraphic" dx="-4" dy="-2" result="o2"/>
+    <feOffset in="SourceGraphic" dx="2.5" dy="2" result="o1"/>
+    <feOffset in="SourceGraphic" dx="-2.5" dy="-1.5" result="o2"/>
     <feComponentTransfer in="o1" result="o1a"><feFuncA type="linear" slope="0.5"/></feComponentTransfer>
     <feComponentTransfer in="o2" result="o2a"><feFuncA type="linear" slope="0.4"/></feComponentTransfer>
     <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="o1a"/><feMergeNode in="o2a"/></feMerge>
@@ -307,12 +311,13 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
       <div class="cbtns" id="presbyBtns" style="display:none;">
         <div class="cb on" id="pbNear" onclick="setPresbyNear(true)">📖 가까운 글씨 보기</div>
         <div class="cb"    id="pbFar"  onclick="setPresbyNear(false)">🏞 먼 거리 보기</div>
-        <div class="cb"    id="pbLoupe" onclick="togglePresbyLoupe()">🔍 돋보기</div>
       </div>
     </div>
     <div class="hintbar" id="vhint"></div>
   </div>
   <div class="garea" id="garea"></div>
+  <!-- 노안 돋보기 — 위쪽 단계 버튼 줄에서는 찾기 어렵다는 의견으로 화면 위에 띄운다 -->
+  <button id="loupeFab" onclick="togglePresbyLoupe()">🔍 돋보기로 보기</button>
 </div>
 
 <script>
@@ -345,7 +350,7 @@ var VISION_AGING=[
         haze:red*0.3,hazeColor:'rgba(150,25,15,0.55)',hazeBlur:0};}},
   {id:'presbyopia',name:'노안',group:'aging',
     // 단계 대신 '가까운 글씨 보기 / 먼 거리 보기'. 뿌옇게 하지 않고 초점만 어긋나 글자를 딱 읽기 힘든 정도
-    apply:function(){return presbyopiaNear?{filter:'blur(0.6px)',defocus:true}:{};}},
+    apply:function(){return presbyopiaNear?{filter:'blur(0.8px)',defocus:true}:{};}},
   {id:'rp',name:'망막색소변성증',group:'aging',
     // 녹내장(불규칙하게 지워짐)과 달리 사방이 고르게 좁아지고, 전체가 어둡고 뿌옇게(야맹증) 보인다
     apply:function(t){return{filter:'brightness('+(100-40*t)+'%) contrast('+(100-25*t)+'%) saturate('+(100-30*t)+'%)',
@@ -786,7 +791,7 @@ function applySubwayDomFx(){
 function setPresbyNear(near){
   presbyopiaNear=near;
   if(!near) presbyLoupeOn=false;
-  document.getElementById('pbLoupe').classList.toggle('on',presbyLoupeOn);
+  syncStageButtons();
   document.getElementById('pbNear').classList.toggle('on',near);
   document.getElementById('pbFar').classList.toggle('on',!near);
   updateVisionOverlay();
@@ -798,7 +803,10 @@ function syncStageButtons(){
   document.getElementById('presbyBtns').style.display=isPresby?'':'none';
   document.getElementById('pbNear').classList.toggle('on',presbyopiaNear);
   document.getElementById('pbFar').classList.toggle('on',!presbyopiaNear);
-  document.getElementById('pbLoupe').classList.toggle('on',presbyLoupeOn);
+  var fab=document.getElementById('loupeFab');
+  fab.style.display=isPresby?'flex':'none';
+  fab.classList.toggle('on',presbyLoupeOn);
+  fab.textContent=presbyLoupeOn?'🔍 돋보기 끄기':'🔍 돋보기로 보기';
 }
 
 // 물건찾기/지하철처럼 캔버스가 낀 화면은 일부 브라우저에서 부모에 건 SVG 필터가 캔버스
@@ -820,7 +828,7 @@ function drawCanvasFx(ctx,canvas){
       var img=ctx.getImageData(0,0,canvas.width,canvas.height);
       ctx.putImageData(VisionFx.applyColorMatrix(img,VisionFx.protanopiaMatrix(res.colorblind)),0,0);
     }
-    if(res.defocus) VisionFx.ghostCanvas(ctx,[[4*scale,3*scale,0.5],[-4*scale,-2*scale,0.4]]); // 노안: 여러 겹으로 어긋난 상
+    if(res.defocus) VisionFx.ghostCanvas(ctx,[[2.5*scale,2*scale,0.5],[-2.5*scale,-1.5*scale,0.4]]); // 노안: 여러 겹으로 어긋난 상(복시보다 좁은 간격)
     if(res.bloomWhite) VisionFx.bloomCanvas(ctx,res.bloomWhite);
     if(res.warp){
       var W=canvas.width, H=canvas.height, r=W*(0.14+0.14*res.warp)*1.6;
@@ -855,7 +863,11 @@ function drawCanvasGhost(ctx,canvas){
     return {x:Math.max(0.05,Math.min(0.95,(clientX-r.left)/r.width)), y:Math.max(0.05,Math.min(0.95,(clientY-r.top)/r.height))};
   }
   var dragging=false, dragMoved=false, downX=0, downY=0, hemiTapped=false;
+  // '다시 도전'·'홈으로' 같은 결과 창 버튼을 누른 것은 반맹 전환·초점 이동으로 처리하지 않는다 —
+  // 예전엔 반맹일 때 버튼 터치까지 반맹 전환으로 잡아 뒤이은 클릭을 막아서 버튼이 먹히지 않았다
+  function isUiTarget(e){ return !!(e.target && e.target.closest && e.target.closest('.mov')); }
   garea.addEventListener('pointerdown',function(e){
+    if(isUiTarget(e)) return;
     if(G.d==='hemianopia'){
       var f=toFrac(e.clientX,e.clientY);
       hemiSide=(f.x<0.5)?'right':'left';
@@ -874,9 +886,11 @@ function drawCanvasGhost(ctx,canvas){
   ['pointerup','pointercancel','pointerleave'].forEach(function(ev){garea.addEventListener(ev,function(){dragging=false;});});
   // 실제로 드래그(중심점 이동)했거나 반맹 화면을 탭한 경우에만 뒤이어 발생하는 클릭/터치를 막아, 물건 찾기 등의 탭 동작과 충돌하지 않게 함
   garea.addEventListener('click',function(e){
+    if(isUiTarget(e)) return;
     if((dragMoved||hemiTapped) && (isFocusDraggable()||G.d==='hemianopia')){ e.stopPropagation(); e.preventDefault(); dragMoved=false; hemiTapped=false; }
   },true);
   garea.addEventListener('touchend',function(e){
+    if(isUiTarget(e)) return;
     if((dragMoved||hemiTapped) && (isFocusDraggable()||G.d==='hemianopia')){ e.stopPropagation(); e.preventDefault(); dragMoved=false; hemiTapped=false; }
   },true);
 
