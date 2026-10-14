@@ -676,7 +676,8 @@ function togglePresbyLoupe(){
 function loupeSource(){
   var el=null;
   if(G.game==='items') el=iCvs;
-  else if(G.game==='subway') el=subMapCvs;
+  // 지하철은 노선도뿐 아니라 안내·확인 화면에서도 돋보기가 보이도록 화면 전체(subway-content)를 복제한다
+  else if(G.game==='subway') el=document.getElementById('subway-content');
   else if(G.game==='kiosk') el=document.getElementById('kiosk-content');
   return (el && document.body.contains(el)) ? el : null;
 }
@@ -719,7 +720,17 @@ function refreshLoupe(){
   } else {
     var cl=src.cloneNode(true);
     cl.removeAttribute('id'); [].slice.call(cl.querySelectorAll('[id]')).forEach(function(x){ x.removeAttribute('id'); });
-    cl.style.cssText=box+'filter:none;overflow:hidden;background:'+getComputedStyle(host).backgroundColor+';';
+    // 배경은 원본 화면 자신의 배경(지하철 안내 화면의 흰 바탕)을, 투명하면 감싸는 쪽(키오스크 베이지)을 쓴다
+    var bg=getComputedStyle(src).backgroundColor;
+    if(!bg || bg==='transparent' || bg==='rgba(0, 0, 0, 0)') bg=getComputedStyle(host).backgroundColor;
+    cl.style.cssText=box+'filter:none;overflow:hidden;background:'+bg+';';
+    [].slice.call(cl.querySelectorAll('*')).forEach(function(x){ if(x.style.filter) x.style.filter='none'; });
+    // cloneNode는 캔버스 그림(노선도)을 복사하지 않으므로, 효과를 굽기 전의 깨끗한 사본을 다시 그려 넣는다
+    var srcCvs=src.querySelectorAll('canvas'), clCvs=cl.querySelectorAll('canvas');
+    for(var ci=0;ci<clCvs.length && ci<srcCvs.length;ci++){
+      clCvs[ci].width=srcCvs[ci].width; clCvs[ci].height=srcCvs[ci].height;
+      clCvs[ci].getContext('2d').drawImage(srcCvs[ci]._clean||srcCvs[ci],0,0);
+    }
     loupeInner.appendChild(cl);
     cl.scrollTop=src.scrollTop;
     if(loupeObserved!==src){
@@ -888,6 +899,9 @@ function drawCanvasGhost(ctx,canvas){
       return;
     }
     if(!isFocusDraggable()) return;
+    // '확인'·'홈으로' 같은 버튼을 누른 것은 돋보기·초점 위치를 옮기지 않는다
+    // (예전엔 지하철 '확인'을 누르면 돋보기가 화면 맨 아래로 옮겨가 노선도에서 잘려 보였다)
+    if(e.target.closest && e.target.closest('button')) return;
     dragging=true; dragMoved=false; downX=e.clientX; downY=e.clientY;
     visFocus=toFrac(e.clientX,e.clientY); updateVisionOverlay();
   });
