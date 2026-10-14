@@ -3,7 +3,9 @@
 A Korean-language elderly-empathy education web app. Static multi-page
 HTML/CSS/JS, no build system, no backend. `index.html` is the hub linking
 to five self-contained experience pages, each simulating a different aspect
-of aging for the visitor:
+of aging for the visitor. Each hub card has an [안내] button opening a sheet
+(의미·목적·체험 방법·기대 효과) from the `GUIDE` object in `index.html` — update
+that text whenever an experience's controls or content change:
 
 - **vision.html** — 카메라로 보는 안질환. The hub links it twice as 시각 체험(노화)
   (`vision.html?g=aging`, 노화성 안질환 8종) and 시각 체험(일반) (`?g=general`,
