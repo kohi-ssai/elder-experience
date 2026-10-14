@@ -32,7 +32,7 @@
   #cbCanvas{ position:absolute; inset:0; width:100%; height:100%; display:none; pointer-events:none; }
   #loupeCanvas{ position:absolute; inset:0; width:100%; height:100%; display:none; pointer-events:none; }
   #amdCanvas{ position:absolute; inset:0; width:100%; height:100%; display:none; pointer-events:none; }
-  /* 굴절장애(난시)·노안의 겹쳐 번지는 상 — 복시와 달리 밝게 더하지 않고 그대로 겹친다 */
+  /* 노안의 겹쳐 보이는 상 — 복시와 달리 밝게 더하지 않고 그대로 겹친다 */
   #videoGhost2{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; pointer-events:none; }
 
   .overlay{ position:absolute; inset:0; pointer-events:none; }
@@ -364,7 +364,7 @@
       // 단계 대신 '가까운 글씨 보기 / 먼 거리 보기' 두 가지만 둔다. 가까이 볼 때는 화면을
       // 뿌옇게 흐리지 않고, 상이 한 점에 맺히지 못해 글자 획이 여러 겹으로 어긋나 겹쳐 보이게
       // 한다 — 큰 형태는 또렷하지만 글자는 겹친 획 때문에 알아보기 힘들다.
-      apply(){ return presbyopiaNear ? { filter:'blur(0.7px)', defocus:true } : {}; } },
+      apply(){ return presbyopiaNear ? { filter:'blur(0.9px)', defocus:true } : {}; } },
     { id:'rp', name:'망막색소변성증', acuity:'야간·주변시야 소실', group:'aging',
       desc:'주변부 전체가 도넛 모양으로 고르게 좁아지며 마치 좁은 원통(터널) 속에서 보는 듯하고, 특히 어두운 곳에서 사물을 거의 분간 못할 만큼 심해져요(야맹증). 빛에 예민해 눈부심을 자주 느끼고, 명암·색 대비를 구별하는 힘이 떨어져 화면 전체가 뿌옇게 보이기도 합니다. 녹내장과 달리 사방이 골고루 좁아져 발을 헛디디거나 옆 사람과 부딪히기 쉬워요.',
       tips:['어두운 실내·저녁 시간엔 더 신중히 안내해주세요','시야 가장자리에서 다가가면 놀랄 수 있어요, 정면으로 접근하세요','바닥 색이 비슷한 문턱은 꼭 말로 짚어주세요'],
@@ -913,7 +913,8 @@
       videoGhost.style.transform = `translate(${4+ghost*22}px, ${2+ghost*8}px)`;
     } else if(defocus){
       // 서로 다른 방향으로 어긋난 상 두 개를 반투명하게 겹친다(뿌연 안개가 아니라 겹친 획)
-      [[4,3,0.5],[-4,-2,0.4]].forEach(([dx,dy,a],i)=>{
+      // 복시처럼 보이지 않도록 어긋난 간격은 좁게(2~3px) — 겹친 획이 붙어 글자만 뭉개진다
+      [[2.5,2,0.5],[-2.5,-1.5,0.4]].forEach(([dx,dy,a],i)=>{
         const v = i ? videoGhost2 : videoGhost;
         v.style.mixBlendMode = 'normal';
         v.style.filter = res.filter;
@@ -983,7 +984,7 @@
     } else if(currentCond.id==='accommodative'){
       hintEl.textContent = '🔄 자동 초점 흐림↔선명 반복';
     } else if(currentCond.id==='hemianopia'){
-      hintEl.textContent = '👆 화면을 누른 쪽이 보이고, 반대쪽이 까맣게 가려져요';
+      hintEl.textContent = '👆 화면을 누를 때마다 가려지는 쪽이 왼쪽↔오른쪽으로 바뀌어요';
     } else {
       hintEl.textContent = '✋ 손잡이 좌우 드래그 · 1(정상)·2(체험) 비교';
     }
@@ -1080,12 +1081,11 @@
     videoSim.style.transition = '';
   }
 
-  // 반맹 - 일상생활 체험과 같이, 화면을 누른 쪽이 보이는 쪽이 되고 반대쪽이 까맣게 가려진다
+  // 반맹 - 화면 아무 곳이나 누를 때마다 까맣게 가려지는 쪽이 왼쪽↔오른쪽으로 번갈아 바뀐다
   document.getElementById('stage').addEventListener('pointerdown', e=>{
     if(currentCond.id!=='hemianopia') return;
     if(e.target.closest && e.target.closest('a,button')) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    currentSub = (e.clientX - r.left) < r.width/2 ? 'right' : 'left';
+    currentSub = currentSub==='left' ? 'right' : 'left';
     [...subChipsEl.children].forEach((x,i)=> x.classList.toggle('active', currentCond.sub[i]===currentSub));
     render();
   });
