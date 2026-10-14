@@ -7,14 +7,14 @@ of aging for the visitor:
 
 - **vision.html** — 카메라로 보는 안질환. The hub links it twice as 시각 체험(노화)
   (`vision.html?g=aging`, 노화성 안질환 8종) and 시각 체험(일반) (`?g=general`,
-  일반 시각장애 8종); each shows only its own group. Live camera feed run through per-condition visual filters
+  일반 시각장애 7종); each shows only its own group. Live camera feed run through per-condition visual filters
   (CSS `filter` for most conditions; a dedicated `<canvas>` redrawn every
   `requestAnimationFrame` for effects CSS can't express, e.g. color-blindness
   matrices and the presbyopia "loupe" partial-sharp-patch interaction).
   Includes stage buttons (초기/중기/말기) for every condition except 노안, which has
   '가까운 글씨 보기 / 먼 거리 보기' instead, and a hemianopia left/right toggle
   (hemianopia shows full-screen, no split). Effect shapes shared with games.html
-  (glaucoma pattern, protanopia matrix, AMD warp, canvas smear/bloom) live in
+  (glaucoma pattern, protanopia matrix, AMD warp, canvas ghost/bloom) live in
   `assets/js/vision-fx.js` (`window.VisionFx`).
 - **games.html** — 일상생활 체험: 물건 찾기 · 키오스크 주문 · 지하철 노선도 찾기, 3가지
   게임, each with the same vision conditions applied on top. Canvas screens get

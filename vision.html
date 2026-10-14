@@ -283,7 +283,7 @@
     <div id="stageHint">&#9995; 손잡이 좌우 드래그 &middot; 1(정상)&middot;2(체험) 비교</div>
     <div id="groupTabs">
       <button class="gtab active" data-g="aging">노화성 안질환 <span class="cnt">8종</span></button>
-      <button class="gtab" data-g="general">일반 시각장애 <span class="cnt">8종</span></button>
+      <button class="gtab" data-g="general">일반 시각장애 <span class="cnt">7종</span></button>
     </div>
     <div id="chips"></div>
     <div id="chips2" style="display:none;"></div>
@@ -361,10 +361,10 @@
     { id:'presbyopia', name:'노안', acuity:'근거리 시력저하', group:'aging',
       desc:'수정체 탄력이 떨어져 가까운 글씨에 초점을 맞추기 어렵습니다. 먼 곳은 잘 보이지만 가까운 글씨는 흐릿하게 겹쳐 보여요.',
       tips:['서류·화면은 눈에서 조금 떨어뜨려 보여주세요','작고 가는 글씨보다 크고 굵은 글씨 자료를 준비하세요','밝은 조명 아래서 보여주면 훨씬 잘 보여요'],
-      // 단계 대신 '가까운 글씨 보기 / 먼 거리 보기' 두 가지만 둔다. 가까이 볼 때도 뿌옇게
-      // 만들지 않고(대비·안개 없음) 초점만 어긋나 상이 살짝 겹쳐 보이게 해서, 큰 형태는
-      // 보이지만 글자는 딱 읽기 힘든 정도로 맞췄다.
-      apply(){ return presbyopiaNear ? { filter:'blur(2.8px)', defocus:true } : {}; } },
+      // 단계 대신 '가까운 글씨 보기 / 먼 거리 보기' 두 가지만 둔다. 가까이 볼 때는 화면을
+      // 뿌옇게 흐리지 않고, 상이 한 점에 맺히지 못해 글자 획이 여러 겹으로 어긋나 겹쳐 보이게
+      // 한다 — 큰 형태는 또렷하지만 글자는 겹친 획 때문에 알아보기 힘들다.
+      apply(){ return presbyopiaNear ? { filter:'blur(0.7px)', defocus:true } : {}; } },
     { id:'rp', name:'망막색소변성증', acuity:'야간·주변시야 소실', group:'aging',
       desc:'주변부 전체가 도넛 모양으로 고르게 좁아지며 마치 좁은 원통(터널) 속에서 보는 듯하고, 특히 어두운 곳에서 사물을 거의 분간 못할 만큼 심해져요(야맹증). 빛에 예민해 눈부심을 자주 느끼고, 명암·색 대비를 구별하는 힘이 떨어져 화면 전체가 뿌옇게 보이기도 합니다. 녹내장과 달리 사방이 골고루 좁아져 발을 헛디디거나 옆 사람과 부딪히기 쉬워요.',
       tips:['어두운 실내·저녁 시간엔 더 신중히 안내해주세요','시야 가장자리에서 다가가면 놀랄 수 있어요, 정면으로 접근하세요','바닥 색이 비슷한 문턱은 꼭 말로 짚어주세요'],
@@ -383,7 +383,7 @@
       apply(t){ return { filter:`contrast(${100+4*t}%)`, floaters:t*1.2 }; } },
   ];
 
-  // ---------- 일반 시각장애 8종 ----------
+  // ---------- 일반 시각장애 7종 ----------
   const GENERAL = [
     { id:'va', name:'시력장애', acuity:'저시력(교정 불가)', group:'general',
       desc:'안경으로도 교정되지 않을 만큼 시력 자체가 낮아 전반적으로 뿌옇고 뭉개져 보입니다. 큰 사물의 윤곽 정도만 겨우 구분되고, 글씨나 표정처럼 세밀한 부분은 거의 알아보기 어려워요.',
@@ -405,11 +405,6 @@
       desc:'붉은색과 초록색 계열이 서로 비슷하게 보여 잘 구분되지 않습니다. 신호등·표지판·약 포장의 색상 구분이 특히 어려워요.',
       tips:['색상만으로 구분되는 안내(빨간 버튼=위험 등)는 모양이나 글자도 함께 알려주세요','신호등·표지판 설명 시 위치까지 함께 말씀해주세요','약봉투는 색보다 글씨 크기로 구분해드리세요'],
       apply(t){ return { colorblind:t }; } },
-    { id:'refractive', name:'굴절장애', acuity:'한 방향으로 번짐(난시)', group:'general',
-      desc:'각막·수정체의 굴절 이상으로 상이 망막에 정확히 맺히지 않아 전반적으로 뿌옇게 보입니다. 근시·원시는 물론, 난시가 있으면 가로·세로 등 방향에 따라 흐려지는 정도가 달라 상이 한쪽으로 번져 보이기도 해요.',
-      tips:['안경을 쓰고 계신지, 도수가 맞는지 여쭤봐주세요','자료는 적정 거리를 두고 천천히 보여주세요','작은 글씨는 확대해서 보여주세요'],
-      // 화면 전체를 고르게 흐리는 노안과 구분되도록, 상이 가로 한 방향으로만 번져 보이게 한다
-      apply(t){ return { filter:`blur(${0.4+0.8*t}px)`, astig:t }; } },
     { id:'accommodative', name:'조절장애', acuity:'초점 전환 지연', group:'general',
       desc:'가까운 곳과 먼 곳 사이에서 초점을 빠르게 바꾸지 못합니다. 화면을 보다 사람 얼굴을 보면 한동안 흐릿하다가 서서히 초점이 맞아요. 몇 초마다 자동으로 흐려졌다 다시 맞춰지는 걸 보며 그 지연을 느껴보세요.',
       tips:['화면과 사람을 번갈아 봐야 할 땐 잠시 기다려주세요','시선을 옮기시라고 미리 말씀해주시면 도움이 돼요','급하게 초점을 요구하는 상황은 피해주세요'],
@@ -907,8 +902,8 @@
     const glare = res.glare||0;
     ovGlare.style.opacity = glare>0 ? Math.min(0.85, glare*0.9) : 0;
 
-    // ghost (diplopia) / 굴절장애(난시): 가로 양쪽으로 번진 상 / 노안: 초점이 어긋나 살짝 겹친 상
-    const ghost = res.ghost||0, astig = res.astig||0;
+    // ghost (diplopia) / 노안: 상이 맺히지 않아 여러 겹으로 어긋나 겹친 상
+    const ghost = res.ghost||0;
     const defocus = res.defocus && !presbyopiaLoupeOn; // 돋보기 원 안은 선명해야 하므로 겹친 상을 끈다
     videoGhost2.style.opacity = 0;
     if(ghost>0){
@@ -916,19 +911,15 @@
       videoGhost.style.filter = 'none';
       videoGhost.style.opacity = Math.min(0.65, 0.15+ghost*0.6);
       videoGhost.style.transform = `translate(${4+ghost*22}px, ${2+ghost*8}px)`;
-    } else if(astig>0){
-      const off = 3+9*astig, blur = `blur(${0.6+1.2*astig}px)`;
-      [videoGhost, videoGhost2].forEach((v,i)=>{
-        v.style.mixBlendMode = 'normal';
-        v.style.filter = blur;
-        v.style.opacity = 0.42;
-        v.style.transform = `translate(${i ? -off : off}px, 0)`;
-      });
     } else if(defocus){
-      videoGhost.style.mixBlendMode = 'normal';
-      videoGhost.style.filter = res.filter;
-      videoGhost.style.opacity = 0.38;
-      videoGhost.style.transform = `scale(${presbyScale()}) translate(2px, 3px)`;
+      // 서로 다른 방향으로 어긋난 상 두 개를 반투명하게 겹친다(뿌연 안개가 아니라 겹친 획)
+      [[4,3,0.5],[-4,-2,0.4]].forEach(([dx,dy,a],i)=>{
+        const v = i ? videoGhost2 : videoGhost;
+        v.style.mixBlendMode = 'normal';
+        v.style.filter = res.filter;
+        v.style.opacity = a;
+        v.style.transform = `scale(${presbyScale()}) translate(${dx}px, ${dy}px)`;
+      });
     } else {
       videoGhost.style.opacity = 0;
     }
@@ -992,7 +983,7 @@
     } else if(currentCond.id==='accommodative'){
       hintEl.textContent = '🔄 자동 초점 흐림↔선명 반복';
     } else if(currentCond.id==='hemianopia'){
-      hintEl.textContent = '👉 아래 버튼으로 안 보이는 쪽 전환';
+      hintEl.textContent = '👆 화면을 누른 쪽이 보이고, 반대쪽이 까맣게 가려져요';
     } else {
       hintEl.textContent = '✋ 손잡이 좌우 드래그 · 1(정상)·2(체험) 비교';
     }
@@ -1088,6 +1079,16 @@
     if(focusLagTimer){ clearInterval(focusLagTimer); focusLagTimer = null; }
     videoSim.style.transition = '';
   }
+
+  // 반맹 - 일상생활 체험과 같이, 화면을 누른 쪽이 보이는 쪽이 되고 반대쪽이 까맣게 가려진다
+  document.getElementById('stage').addEventListener('pointerdown', e=>{
+    if(currentCond.id!=='hemianopia') return;
+    if(e.target.closest && e.target.closest('a,button')) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    currentSub = (e.clientX - r.left) < r.width/2 ? 'right' : 'left';
+    [...subChipsEl.children].forEach((x,i)=> x.classList.toggle('active', currentCond.sub[i]===currentSub));
+    render();
+  });
 
   // 2번: 황반변성 - 손가락으로 눌러서 암점 위치를 옮겨보기
   (function(){
