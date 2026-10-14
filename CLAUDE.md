@@ -5,15 +5,20 @@ HTML/CSS/JS, no build system, no backend. `index.html` is the hub linking
 to five self-contained experience pages, each simulating a different aspect
 of aging for the visitor:
 
-- **vision.html** — 카메라로 보는 안질환 13종 · 초기·중기·말기 단계별 시야
-  변화. Live camera feed run through per-condition visual filters
+- **vision.html** — 카메라로 보는 안질환. The hub links it twice as 시각 체험(노화)
+  (`vision.html?g=aging`, 노화성 안질환 8종) and 시각 체험(일반) (`?g=general`,
+  일반 시각장애 8종); each shows only its own group. Live camera feed run through per-condition visual filters
   (CSS `filter` for most conditions; a dedicated `<canvas>` redrawn every
   `requestAnimationFrame` for effects CSS can't express, e.g. color-blindness
   matrices and the presbyopia "loupe" partial-sharp-patch interaction).
-  Includes stage buttons (초기/중기/말기) for every condition, and a
-  hemianopia left/right toggle.
-- **games.html** — 물건 찾기 · 키오스크 주문 · 지하철 노선도 찾기 · 카메라
-  체험, 4가지 게임.
+  Includes stage buttons (초기/중기/말기) for every condition except 노안, which has
+  '가까운 글씨 보기 / 먼 거리 보기' instead, and a hemianopia left/right toggle
+  (hemianopia shows full-screen, no split). Effect shapes shared with games.html
+  (glaucoma pattern, protanopia matrix, AMD warp, canvas smear/bloom) live in
+  `assets/js/vision-fx.js` (`window.VisionFx`).
+- **games.html** — 일상생활 체험: 물건 찾기 · 키오스크 주문 · 지하철 노선도 찾기, 3가지
+  게임, each with the same vision conditions applied on top. Canvas screens get
+  pixel effects in `drawCanvasFx()`; HTML screens get SVG filters (`domSvgFx()`).
 - **hearing.html** — 지하철·병원 안내음성을 중증 난청으로 먼저 듣고 안내마다
   객관식 1 + 받아쓰기(빈칸) 1문제를 풀면 정상 청력이 열리는 흐름. 안내별 점수와
   탭(지하철/병원) 총점 표시. 음성은 `assets/audio/*_s.mp3`(중증)·`*_n.mp3`(정상).
@@ -23,7 +28,9 @@ of aging for the visitor:
   (`ROOMS`/`BLOCK_ONLY_RECTS`, line-of-sight-verified path simplification)
   and a guide line whose visible jitter simulates hand tremor at increasing
   severity across 3 mission sets. Per-set miss counts are shown on the
-  victory screen (not summed across sets).
+  victory screen (not summed across sets). The writing mode shows only the
+  current tremor level (no stability/deviation numbers — those measured the
+  injected jitter, not the user).
 - **memory.html** — 기억력·집중력 체험. 탭 5개(장보기·가는 길·약 정리·일상 판단·집중력)를 각각 따로 체험.
   앞의 3개는 암기 → 방해과제(계산) → 회상 구조, 일상 판단은 치매 어르신 상황 9개에
   대한 사회복무요원 응대 선택 + 해설. 결과 화면마다 '체험 후 생각해보기' 질문,
