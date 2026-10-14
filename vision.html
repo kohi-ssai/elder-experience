@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/theme.css">
+<script src="assets/js/vision-fx.js"></script>
 <style>
   html,body{ overflow:hidden; }
   #app{ position:fixed; inset:0; display:flex; flex-direction:column; }
@@ -30,6 +31,9 @@
   #videoBloom{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; mix-blend-mode:screen; pointer-events:none; }
   #cbCanvas{ position:absolute; inset:0; width:100%; height:100%; display:none; pointer-events:none; }
   #loupeCanvas{ position:absolute; inset:0; width:100%; height:100%; display:none; pointer-events:none; }
+  #amdCanvas{ position:absolute; inset:0; width:100%; height:100%; display:none; pointer-events:none; }
+  /* 굴절장애(난시)·노안의 겹쳐 번지는 상 — 복시와 달리 밝게 더하지 않고 그대로 겹친다 */
+  #videoGhost2{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; pointer-events:none; }
 
   .overlay{ position:absolute; inset:0; pointer-events:none; }
   #ovVignette{ background:transparent; opacity:0; transition:opacity .25s; }
@@ -84,9 +88,11 @@
 
   #homeBtn{
     position:absolute; z-index:11; top:calc(var(--safe-top) + 8px); left:10px;
-    width:34px; height:34px; border-radius:50%; background:rgba(20,24,28,.55); border:1px solid rgba(238,234,226,.18);
-    display:flex; align-items:center; justify-content:center; color:var(--ink); font-size:16px; text-decoration:none;
+    height:42px; padding:0 14px 0 10px; gap:4px; border-radius:21px; background:rgba(20,24,28,.82); border:1.5px solid rgba(238,234,226,.55);
+    display:flex; align-items:center; justify-content:center; color:var(--ink); font-size:15px; font-weight:700; text-decoration:none;
+    box-shadow:0 2px 10px rgba(0,0,0,.35);
   }
+  #homeBtn .arr{ font-size:20px; line-height:1; }
   #loupeToggle{
     position:absolute; z-index:11; bottom:60px; right:14px; display:none;
     align-items:center; gap:6px; background:rgba(20,24,28,.72); border:1px solid rgba(238,234,226,.25);
@@ -94,9 +100,10 @@
     padding:9px 14px; border-radius:20px;
   }
   /* 노안 돋보기 모드: 좌우 비교 없이 화면 전체를 흐리게 보여주고 원 안만 선명하게 */
-  #stage.loupe-mode #simWrap{ clip-path:none !important; }
-  #stage.loupe-mode #divider,
-  #stage.loupe-mode .side-tag{ display:none; }
+  /* 반맹도 좌우 비교 없이 전체 화면으로 보여준다(왼쪽이 안 보임을 고르면 왼쪽 절반이 가려져야 하므로) */
+  #stage.loupe-mode #simWrap, #stage.nosplit #simWrap{ clip-path:none !important; }
+  #stage.loupe-mode #divider, #stage.nosplit #divider,
+  #stage.loupe-mode .side-tag, #stage.nosplit .side-tag{ display:none; }
   #loupeToggle.on{ background:rgba(217,164,65,.92); color:#1B1300; border-color:var(--amber); }
 
   #permOverlay{
@@ -112,11 +119,13 @@
   #permOverlay .err{ color:var(--brick); font-size:12.5px; margin-top:4px; }
 
   #topbar{
-    position:absolute; top:0; left:0; right:0; z-index:10; padding:calc(var(--safe-top) + 10px) 14px 40px 52px;
+    position:absolute; top:0; left:0; right:0; z-index:10; padding:calc(var(--safe-top) + 14px) 14px 40px 128px;
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     background:linear-gradient(to bottom, rgba(0,0,0,.55), transparent); pointer-events:none;
   }
-  #condName{ display:flex; align-items:center; gap:8px; }
+  #condName{ display:flex; align-items:center; gap:8px; min-width:0; }
+  #condName span.n{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #recDot{ flex-shrink:0; }
   #recDot{ width:8px; height:8px; border-radius:50%; background:var(--brick); box-shadow:0 0 8px var(--brick); animation:pulse 1.6s ease-in-out infinite; }
   @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
   #condName span.n{ font-weight:700; font-size:15px; }
@@ -157,7 +166,10 @@
   }
   .stagebtn.active{ border-color:var(--brick); background:rgba(176,87,74,.16); color:#E2A79E; }
 
+  #presbyRow{ display:none; gap:8px; padding:4px 14px 2px; }
+  #presbyRow.show{ display:flex; }
   #severityRow{ padding:10px 16px 4px; }
+  #severityRow.hide{ display:none; }
   #severityRow .lbl{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
   #severityRow .lbl .lt{ font-size:12.5px; color:var(--ink-dim); }
   #severityRow .lbl .lv{ font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; color:var(--amber); }
@@ -205,6 +217,7 @@
   #panel.compact #chips2,
   #panel.compact #subChips,
   #panel.compact #stageRow,
+  #panel.compact #presbyRow,
   #panel.compact #severityRow,
   #panel.compact #tipsToggle,
   #panel.compact #tipsBody{ display:none; }
@@ -223,7 +236,9 @@
       <video id="videoSim" autoplay playsinline muted></video>
       <canvas id="cbCanvas"></canvas>
       <canvas id="loupeCanvas"></canvas>
+      <canvas id="amdCanvas"></canvas>
       <video id="videoGhost" autoplay playsinline muted></video>
+      <video id="videoGhost2" autoplay playsinline muted></video>
       <video id="videoBloom" autoplay playsinline muted></video>
       <div class="overlay" id="ovHaze"></div>
       <div class="overlay" id="ovGlare"></div>
@@ -235,7 +250,7 @@
       <div class="overlay" id="ovDiabetic"></div>
     </div>
 
-    <a id="homeBtn" href="index.html">&#8592;</a>
+    <a id="homeBtn" href="index.html"><span class="arr">&#8592;</span>처음으로</a>
     <div class="side-tag" id="tagLeft">1 &middot; 정상 시야</div>
     <div class="side-tag" id="tagRight">2 &middot; 체험 중</div>
     <button id="loupeToggle">&#128269; 돋보기로 보기</button>
@@ -278,6 +293,11 @@
       <button class="stagebtn" data-stage="1">&#9679; 초기</button>
       <button class="stagebtn" data-stage="2">&#9679;&#9679; 중기</button>
       <button class="stagebtn" data-stage="3">&#9679;&#9679;&#9679; 말기</button>
+    </div>
+
+    <div id="presbyRow">
+      <button class="stagebtn" data-near="1">&#128214; 가까운 글씨 보기</button>
+      <button class="stagebtn" data-near="0">&#127956; 먼 거리 보기</button>
     </div>
 
     <div id="severityRow">
@@ -326,21 +346,32 @@
       tips:['옆·뒤에서 갑자기 말을 걸거나 손대지 마세요','정면으로 천천히 다가가 인기척을 먼저 알려주세요','이동 중 발밑 턱이나 장애물을 말로 알려주세요'],
       apply(t){ return { filter:`contrast(${100+4*t}%)`, glaucomaLoss:t }; } },
     { id:'amd', name:'황반변성', acuity:'20/400 · 중심부', group:'aging',
-      desc:'시야 한가운데가 검게 얼룩지거나 지워져 마주 본 얼굴·글자의 가운데를 알아보기 어렵습니다. 말기엔 암점 가장자리가 뚜렷해져요.',
+      desc:'시야 한가운데가 검게 얼룩지거나 지워져 마주 본 얼굴·글자의 가운데를 알아보기 어렵습니다. 그 주변의 글자나 반듯한 선(문틀·표 줄)은 물결처럼 휘어 보여요. 말기엔 암점 가장자리가 뚜렷해져요.',
       tips:['정면보다 옆에서 살짝 비켜 서면 더 잘 보일 수 있어요','중요한 내용은 글씨보다 말로 또박또박 전달해주세요','작은 글씨 서류는 대신 소리 내어 읽어주세요'],
-      apply(t){ return { filter:`contrast(${100-8*t}%) saturate(${100-6*t}%)`, central:t }; } },
+      // 가운데 암점에 더해, 그 주변의 글자·직선이 물결처럼 휘어 보이는 변시증(warp)도 함께
+      apply(t){ return { filter:`contrast(${100-8*t}%) saturate(${100-6*t}%)`, central:t, warp:t }; } },
     { id:'diabetic', name:'당뇨망막병증', acuity:'반점형 시야손실', group:'aging',
       desc:'망막 곳곳이 손상돼 시야에 불규칙하고 경계가 흐릿한 얼룩이 흩어져 나타나며, 실 모양의 부유물도 함께 떠다닐 수 있습니다. 초기엔 작은 얼룩이 몇 군데뿐이지만 중기로 갈수록 크기와 개수가 늘고, 말기(증식성)에는 유리체 출혈로 붉게 물든 반점까지 섞여 시야가 크게 흐려집니다.',
       tips:['같은 물건도 여러 각도에서 다시 보여주세요','바닥 턱·계단은 특히 미리 안내해주세요','시야에 빈 곳이 있을 수 있으니 천천히, 자주 확인하며 설명해주세요'],
-      apply(t){ return { diabeticSpots:t, floaters:t*0.5 }; } },
+      // 말기(증식성)로 갈수록 얼룩이 크고 많아지고, 유리체 출혈로 화면 전체가 붉게 흐려진다
+      apply(t){ const e=Math.pow(t,1.3), red=Math.max(0,Math.min(1,(t-0.55)/0.4));
+        return { filter:`blur(${0.2+2.4*e}px) saturate(${100-15*t}%)`,
+          diabeticSpots:t*1.08, floaters:t*0.6,
+          haze:red*0.3, hazeColor:'rgba(150,25,15,0.55)', hazeBlur:0 }; } },
     { id:'presbyopia', name:'노안', acuity:'근거리 시력저하', group:'aging',
       desc:'수정체 탄력이 떨어져 가까운 글씨에 초점을 맞추기 어렵습니다. 먼 곳은 잘 보이지만 가까운 글씨는 흐릿하게 겹쳐 보여요.',
       tips:['서류·화면은 눈에서 조금 떨어뜨려 보여주세요','작고 가는 글씨보다 크고 굵은 글씨 자료를 준비하세요','밝은 조명 아래서 보여주면 훨씬 잘 보여요'],
-      apply(t){ return { filter:`blur(${(1+5*t)*presbyopiaZoom}px) contrast(${100-16*t*presbyopiaZoom}%)`, presbyZoom:presbyopiaZoom }; } },
+      // 단계 대신 '가까운 글씨 보기 / 먼 거리 보기' 두 가지만 둔다. 가까이 볼 때도 뿌옇게
+      // 만들지 않고(대비·안개 없음) 초점만 어긋나 상이 살짝 겹쳐 보이게 해서, 큰 형태는
+      // 보이지만 글자는 딱 읽기 힘든 정도로 맞췄다.
+      apply(){ return presbyopiaNear ? { filter:'blur(2.8px)', defocus:true } : {}; } },
     { id:'rp', name:'망막색소변성증', acuity:'야간·주변시야 소실', group:'aging',
       desc:'주변부 전체가 도넛 모양으로 고르게 좁아지며 마치 좁은 원통(터널) 속에서 보는 듯하고, 특히 어두운 곳에서 사물을 거의 분간 못할 만큼 심해져요(야맹증). 빛에 예민해 눈부심을 자주 느끼고, 명암·색 대비를 구별하는 힘이 떨어져 화면 전체가 뿌옇게 보이기도 합니다. 녹내장과 달리 사방이 골고루 좁아져 발을 헛디디거나 옆 사람과 부딪히기 쉬워요.',
       tips:['어두운 실내·저녁 시간엔 더 신중히 안내해주세요','시야 가장자리에서 다가가면 놀랄 수 있어요, 정면으로 접근하세요','바닥 색이 비슷한 문턱은 꼭 말로 짚어주세요'],
-      apply(t){ return { filter:`brightness(${100-22*t}%) contrast(${100-10*t}%)`, vignette:t*0.95, vignetteSoft:true, haze:t*0.32, glare:t*0.4 }; } },
+      // 녹내장(불규칙하게 지워짐)과 달리 사방이 고르게 좁아지고, 화면 전체가 어둡고
+      // 뿌옇게(야맹증·대비 저하) 보이게 한다
+      apply(t){ return { filter:`brightness(${100-40*t}%) contrast(${100-25*t}%) saturate(${100-30*t}%)`,
+        vignette:0.15+0.8*t, vignetteSoft:true, haze:t*0.3, hazeColor:'rgba(70,74,84,0.5)', hazeBlur:1+3*t }; } },
     { id:'hemianopia', name:'반맹', acuity:'좌/우 시야 절반 소실', group:'aging',
       sub:['right','left'], subLabel:{ right:'오른쪽이 안 보임', left:'왼쪽이 안 보임' },
       desc:'뇌졸중 등으로 시야의 절반(주로 한쪽)이 통째로 보이지 않습니다. 정면을 보고 있어도 한쪽에서 다가오는 사람이나 물건을 전혀 인지하지 못해요.',
@@ -349,7 +380,7 @@
     { id:'floaters_dz', name:'비문증', acuity:'날파리 부유물 시야', group:'aging',
       desc:'유리체 혼탁으로 눈앞에 투명한 실이나 지렁이 모양, 작은 날파리 모양의 것들이 둥둥 떠다니는 것처럼 보입니다. 눈을 움직이면 함께 따라 움직이고, 밝은 배경을 볼 때 특히 두드러져요.',
       tips:['밝은 벽이나 하늘을 보며 대화할 때 더 불편해할 수 있어요','갑자기 부유물이 급격히 늘면 병원 진료가 필요할 수 있다고 안내해주세요','시야 방해로 놓치는 물건이 있는지 한 번 더 확인해주세요'],
-      apply(t){ return { filter:`contrast(${100+4*t}%)`, floaters:t*1.15 }; } },
+      apply(t){ return { filter:`contrast(${100+4*t}%)`, floaters:t*1.2 }; } },
   ];
 
   // ---------- 일반 시각장애 8종 ----------
@@ -374,10 +405,11 @@
       desc:'붉은색과 초록색 계열이 서로 비슷하게 보여 잘 구분되지 않습니다. 신호등·표지판·약 포장의 색상 구분이 특히 어려워요.',
       tips:['색상만으로 구분되는 안내(빨간 버튼=위험 등)는 모양이나 글자도 함께 알려주세요','신호등·표지판 설명 시 위치까지 함께 말씀해주세요','약봉투는 색보다 글씨 크기로 구분해드리세요'],
       apply(t){ return { colorblind:t }; } },
-    { id:'refractive', name:'굴절장애', acuity:'초점 흐림', group:'general',
+    { id:'refractive', name:'굴절장애', acuity:'한 방향으로 번짐(난시)', group:'general',
       desc:'각막·수정체의 굴절 이상으로 상이 망막에 정확히 맺히지 않아 전반적으로 뿌옇게 보입니다. 근시·원시는 물론, 난시가 있으면 가로·세로 등 방향에 따라 흐려지는 정도가 달라 상이 한쪽으로 번져 보이기도 해요.',
       tips:['안경을 쓰고 계신지, 도수가 맞는지 여쭤봐주세요','자료는 적정 거리를 두고 천천히 보여주세요','작은 글씨는 확대해서 보여주세요'],
-      apply(t){ return { filter:`blur(${1+5*t}px)` }; } },
+      // 화면 전체를 고르게 흐리는 노안과 구분되도록, 상이 가로 한 방향으로만 번져 보이게 한다
+      apply(t){ return { filter:`blur(${0.4+0.8*t}px)`, astig:t }; } },
     { id:'accommodative', name:'조절장애', acuity:'초점 전환 지연', group:'general',
       desc:'가까운 곳과 먼 곳 사이에서 초점을 빠르게 바꾸지 못합니다. 화면을 보다 사람 얼굴을 보면 한동안 흐릿하다가 서서히 초점이 맞아요. 몇 초마다 자동으로 흐려졌다 다시 맞춰지는 걸 보며 그 지연을 느껴보세요.',
       tips:['화면과 사람을 번갈아 봐야 할 땐 잠시 기다려주세요','시선을 옮기시라고 미리 말씀해주시면 도움이 돼요','급하게 초점을 요구하는 상황은 피해주세요'],
@@ -385,14 +417,17 @@
     { id:'glare', name:'광각장애(눈부심)', acuity:'빛 번짐·눈부심', group:'general',
       desc:'빛에 예민해져 조명이나 창밖 햇빛이 하얗게 번져 보이고, 밝은 곳에서 오히려 시야가 더 나빠집니다.',
       tips:['정면 조명이나 창가 역광을 피해 자리를 안내해주세요','스마트폰·화면 밝기를 낮춰드리는 것도 도움이 돼요','실내외 이동 시 눈이 적응할 시간을 주세요'],
-      apply(t){ return { filter:`brightness(${100+4*t}%) contrast(${100-6*t}%)`, glare:t }; } },
+      // 백내장의 '밝은 곳이 번지는 효과'를 노란기 없이 더 하얗고 강하게 — 조명·창문·화면처럼
+      // 실제로 밝은 곳에서 빛이 크게 퍼져 나가 주변을 덮는다
+      apply(t){ return { filter:`brightness(${104+8*t}%) contrast(${100-18*t}%) saturate(${100-10*t}%)`,
+        bloom:0.45+0.55*t, bloomWhite:true, haze:0.12+0.2*t, hazeColor:'rgba(255,255,250,0.35)', hazeBlur:0.5+1.5*t }; } },
   ];
 
   const CONDITIONS = AGING.concat(GENERAL);
   let currentCond = CONDITIONS[0];
   let currentSub = 'protanopia';
   let severity = 55;
-  let presbyopiaZoom = 0.3; // 0=멀리(선명) ~ 1=가까이(블러)
+  let presbyopiaNear = true; // 노안: true=가까운 글씨 보기(초점 어긋남), false=먼 거리 보기(선명)
   let amdFocus = {x:0.5, y:0.5}; // 2번: 황반변성 암점 위치(손가락으로 이동 가능)
   let presbyopiaLoupeOn = false; // 노안 - 돋보기 모드 켬/끔
   let loupePos = {x:0.5, y:0.5}; // 돋보기(선명하게 보이는 원) 위치
@@ -400,6 +435,9 @@
   const videoNormal = document.getElementById('videoNormal');
   const videoSim = document.getElementById('videoSim');
   const videoGhost = document.getElementById('videoGhost');
+  const videoGhost2 = document.getElementById('videoGhost2');
+  const amdCanvas = document.getElementById('amdCanvas');
+  const amdCtx = amdCanvas.getContext('2d');
   const videoBloom = document.getElementById('videoBloom');
   const cbCanvas = document.getElementById('cbCanvas');
   const cbCtx = cbCanvas.getContext('2d', { willReadFrequently:true });
@@ -501,7 +539,7 @@
   let loupeRunning = false;
   let loupeLoopId = 0;
   // 돋보기를 켜도 손가락으로 확대·축소해 둔 상태(흐림 정도·확대 배율)를 그대로 유지한다
-  function presbyScale(){ return 1+presbyopiaZoom*0.35; }
+  function presbyScale(){ return presbyopiaNear ? 1.1 : 1; }
   function loupeDrawFrame(id){
     if(!loupeRunning || id !== loupeLoopId) return;
     const srcVideo = videoNormal;
@@ -528,7 +566,7 @@
       loupeCtx.translate(cx, cy);
       loupeCtx.scale(LOUPE_MAG, LOUPE_MAG);
       loupeCtx.translate(-cx, -cy);
-      // 그 아래에는 흐린 배경(videoSim)과 똑같이 화면 중심 기준 핀치 확대를 적용해 위치를 맞춘다
+      // 그 아래에는 흐린 배경(videoSim)과 똑같이 화면 중심 기준 '가까운 글씨 보기' 확대를 적용해 위치를 맞춘다
       const ps = presbyScale();
       loupeCtx.translate(targetW/2, targetH/2);
       loupeCtx.scale(ps, ps);
@@ -564,6 +602,43 @@
     loupeCanvas.style.display = 'none';
   }
 
+  // 황반변성 변시증 - 매 프레임 영상을 버퍼 캔버스에 그린 뒤, 암점 주변 원 안의 픽셀만
+  // 물결처럼 옮겨 amdCanvas에 그린다(원 바깥은 투명이라 아래 영상이 그대로 보인다).
+  // 영상 위에 SVG 왜곡 필터를 거는 방식은 iOS Safari에서 동작하지 않아 캔버스로 처리한다.
+  const amdBuf = document.createElement('canvas');
+  const amdBufCtx = amdBuf.getContext('2d', { willReadFrequently:true });
+  let amdRunning = false, amdLoopId = 0, amdWarpT = 0;
+  function amdDrawFrame(id){
+    if(!amdRunning || id !== amdLoopId) return;
+    const srcVideo = videoNormal;
+    if(srcVideo.videoWidth > 0){
+      const rect = document.getElementById('stage').getBoundingClientRect();
+      const targetW = 360, targetH = Math.round(targetW * (rect.height/rect.width || 1.8));
+      if(amdCanvas.width !== targetW || amdCanvas.height !== targetH){
+        amdCanvas.width = targetW; amdCanvas.height = targetH;
+        amdBuf.width = targetW; amdBuf.height = targetH;
+      }
+      const vw = srcVideo.videoWidth, vh = srcVideo.videoHeight;
+      const scale = Math.max(targetW/vw, targetH/vh);
+      const sw = targetW/scale, sh = targetH/scale;
+      amdBufCtx.drawImage(srcVideo, (vw-sw)/2, (vh-sh)/2, sw, sh, 0, 0, targetW, targetH);
+      // 암점 반지름(화면 폭의 14~28%)보다 넉넉히 큰 원에서 휘게 해야 암점 바깥 고리에서 보인다
+      const t = amdWarpT;
+      const r = targetW*(0.14+0.14*t)*1.8;
+      amdCtx.clearRect(0, 0, targetW, targetH);
+      VisionFx.warpPatch(amdBufCtx, amdCtx, amdFocus.x*targetW, amdFocus.y*targetH, r, r*(0.05+0.07*t), performance.now()/1000*0.8);
+    }
+    requestAnimationFrame(()=> amdDrawFrame(id));
+  }
+  function startAmdCanvas(){
+    amdCanvas.style.display = 'block';
+    if(!amdRunning){ amdRunning = true; amdLoopId++; amdDrawFrame(amdLoopId); }
+  }
+  function stopAmdCanvas(){
+    amdRunning = false; amdLoopId++;
+    amdCanvas.style.display = 'none';
+  }
+
   // 실/지렁이 모양(투명, 구불구불) + 날파리 모양(작고 동그란) 부유물
   const THREAD_SPOTS = [
     {l:'10%',t:'16%',w:'22%',h:'14%', delay:'0s', dur:'9s', rot:'6deg', at:0.04},
@@ -574,6 +649,11 @@
     {l:'70%',t:'34%',w:'17%',h:'11%', delay:'2.6s', dur:'13s', rot:'-26deg', at:0.74},
     {l:'40%',t:'74%',w:'20%',h:'12%', delay:'1.6s', dur:'9.5s', rot:'10deg', at:0.85},
     {l:'80%',t:'52%',w:'15%',h:'9%', delay:'3.4s', dur:'11.5s', rot:'-12deg', at:0.94},
+    // 비문증 말기에만 더해지는 부유물 — 개수를 늘려 말기가 확실히 더 심하게 보이도록
+    {l:'14%',t:'30%',w:'20%',h:'12%', delay:'1.9s', dur:'10.5s', rot:'-20deg', at:0.98},
+    {l:'50%',t:'54%',w:'22%',h:'13%', delay:'0.3s', dur:'12.5s', rot:'18deg', at:1.0},
+    {l:'66%',t:'84%',w:'18%',h:'11%', delay:'2.4s', dur:'9s', rot:'4deg', at:1.02},
+    {l:'36%',t:'6%',w:'19%',h:'12%', delay:'1.0s', dur:'11s', rot:'-6deg', at:1.04},
   ];
   const FLY_SPOTS = [
     {l:'72%',t:'46%',w:'3.2%',h:'2.8%', delay:'.6s', dur:'7s', at:0.06},
@@ -586,6 +666,12 @@
     {l:'34%',t:'58%',w:'2.7%',h:'2.4%', delay:'2.0s', dur:'6.8s', at:0.76},
     {l:'62%',t:'82%',w:'2.4%',h:'2.1%', delay:'1.4s', dur:'9.4s', at:0.85},
     {l:'8%',t:'48%',w:'2.9%',h:'2.5%', delay:'2.8s', dur:'7.8s', at:0.93},
+    {l:'26%',t:'18%',w:'2.8%',h:'2.4%', delay:'1.7s', dur:'8.2s', at:0.97},
+    {l:'56%',t:'36%',w:'3.0%',h:'2.6%', delay:'0.9s', dur:'7.2s', at:0.99},
+    {l:'76%',t:'58%',w:'2.6%',h:'2.3%', delay:'2.5s', dur:'9.6s', at:1.01},
+    {l:'44%',t:'68%',w:'2.9%',h:'2.5%', delay:'3.1s', dur:'6.6s', at:1.03},
+    {l:'90%',t:'40%',w:'2.5%',h:'2.2%', delay:'0.2s', dur:'8.8s', at:1.05},
+    {l:'22%',t:'60%',w:'2.7%',h:'2.4%', delay:'1.3s', dur:'7.6s', at:1.06},
   ];
   const THREAD_SVG = `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
       <path d="M4 30 C 20 5, 35 55, 50 28 S 78 4, 96 32" fill="none" stroke="rgba(14,12,10,0.22)" stroke-width="5" stroke-linecap="round" filter="blur(1.5px)"/>
@@ -632,6 +718,15 @@
     {l:'58%',t:'65%',w:'11%',h:'9%', at:0.78, red:true},
     {l:'45%',t:'45%',w:'9%',h:'7%', at:0.85, red:true},
     {l:'70%',t:'20%',w:'8%',h:'6%', at:0.90, red:true},
+    // 말기에만 더해지는 큰 얼룩·출혈 반점
+    {l:'8%',t:'26%',w:'11%',h:'9%', at:0.92},
+    {l:'84%',t:'70%',w:'10%',h:'8%', at:0.93, red:true},
+    {l:'48%',t:'8%',w:'12%',h:'9%', at:0.94},
+    {l:'12%',t:'72%',w:'12%',h:'10%', at:0.95, red:true},
+    {l:'66%',t:'50%',w:'10%',h:'8%', at:0.96},
+    {l:'36%',t:'80%',w:'11%',h:'9%', at:0.97, red:true},
+    {l:'86%',t:'12%',w:'9%',h:'8%', at:0.98},
+    {l:'30%',t:'32%',w:'9%',h:'8%', at:0.99, red:true},
   ];
   DIABETIC_SPOTS.forEach(f=>{
     const d = document.createElement('div');
@@ -652,6 +747,7 @@
       if(c.sub) currentSub = c.sub[0]; // 이전 조건에서 쓰던 세부 옵션이 남아있지 않도록 첫 옵션으로 초기화
       amdFocus = {x:0.5, y:0.5};
       presbyopiaLoupeOn = false; stopLoupeCanvas(); loupeToggle.classList.remove('on');
+      presbyopiaNear = true;
       if(c.id==='accommodative') startFocusLagCycle(); else stopFocusLagCycle();
       [...chipsEl.children, ...chips2El.children].forEach(ch=>ch.classList.remove('active'));
       chip.classList.add('active');
@@ -661,19 +757,16 @@
     });
     container.appendChild(chip);
   }
+  // 시각 체험은 첫 화면에서 '노화'와 '일반' 두 개로 나눠 들어온다(vision.html?g=aging / ?g=general).
+  // 들어온 쪽의 질환만 보여주고, 페이지 안에서 다른 쪽으로 넘어가는 탭은 두지 않는다.
+  const PAGE_GROUP = new URLSearchParams(location.search).get('g')==='general' ? 'general' : 'aging';
+  if(PAGE_GROUP==='general') currentCond = GENERAL[0];
   AGING.forEach(c=>makeChip(c, chipsEl));
   GENERAL.forEach(c=>makeChip(c, chips2El));
-
-  // 9번: 노화성/일반 그룹을 탭으로 전환
-  document.querySelectorAll('.gtab').forEach(tab=>{
-    tab.addEventListener('click', ()=>{
-      document.querySelectorAll('.gtab').forEach(t=>t.classList.remove('active'));
-      tab.classList.add('active');
-      const g = tab.dataset.g;
-      chipsEl.style.display = g==='aging' ? 'flex' : 'none';
-      chips2El.style.display = g==='general' ? 'flex' : 'none';
-    });
-  });
+  document.getElementById('groupTabs').style.display = 'none';
+  chipsEl.style.display = PAGE_GROUP==='aging' ? 'flex' : 'none';
+  chips2El.style.display = PAGE_GROUP==='general' ? 'flex' : 'none';
+  document.title = PAGE_GROUP==='aging' ? '시각 체험(노화) · 노화성 안질환 카메라 체험' : '시각 체험(일반) · 일반 시각장애 카메라 체험';
 
   function buildSubChips(){
     subChipsEl.innerHTML='';
@@ -697,9 +790,23 @@
   }
   buildSubChips();
 
+  const presbyRow = document.getElementById('presbyRow');
+  const severityRow = document.getElementById('severityRow');
   function buildStageRow(){
-    stageRow.classList.add('show'); // 노화성/일반 구분 없이 모든 항목에 초기·중기·말기 단계 버튼을 보여준다
+    // 노안만 초기·중기·말기 대신 '가까운 글씨 보기 / 먼 거리 보기' 두 버튼을 보여준다
+    const isPresby = currentCond.id==='presbyopia';
+    stageRow.classList.toggle('show', !isPresby);
+    severityRow.classList.toggle('hide', isPresby);
+    presbyRow.classList.toggle('show', isPresby);
+    [...presbyRow.children].forEach(b=> b.classList.toggle('active', (b.dataset.near==='1')===presbyopiaNear));
   }
+  [...presbyRow.children].forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      presbyopiaNear = btn.dataset.near==='1';
+      buildStageRow();
+      render();
+    });
+  });
   buildStageRow();
   [...stageRow.children].forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -728,8 +835,12 @@
     const t = severity/100;
     const res = currentCond.apply(t, currentSub) || {};
 
-    // 노안은 돋보기를 켜도 핀치로 맞춰 둔 흐림·확대를 그대로 두고, 돋보기 원 안만 선명하게 겹쳐 그린다
+    // 노안은 돋보기를 켜도 '가까운 글씨 보기'의 흐림·확대를 그대로 두고, 돋보기 원 안만 선명하게 겹쳐 그린다
     videoSim.style.filter = res.filter || 'none';
+
+    // 반맹은 좌우 비교 없이 전체 화면으로 — 비교 화면(오른쪽 절반)만 보여주면 '왼쪽이 안 보임'을
+    // 골랐을 때 가려지는 왼쪽 절반이 잘려서 아무 변화가 없어 보였다
+    document.getElementById('stage').classList.toggle('nosplit', currentCond.id==='hemianopia');
     videoSim.style.transformOrigin = 'center center';
     videoSim.style.transform = currentCond.id==='presbyopia' ? `scale(${presbyScale()})` : 'none';
 
@@ -767,20 +878,15 @@
       ovCentral.style.filter = `blur(${(1-central)*8+1}px)`;
     }
 
-    // 4번: 녹내장 - 주변시야 전체가 어두워지고 중심시야만 또렷하게 유지 (중심은 절대 흐려지지 않음)
+    // 녹내장 - 코 쪽과 위·아래부터 불규칙하게 지워지고 중심은 끝까지 또렷하게 (모양은 vision-fx.js)
     const gloss = res.glaucomaLoss||0;
     ovGlaucoma.style.opacity = gloss>0 ? 1 : 0;
-    if(gloss>0){
-      ovGlaucoma.style.setProperty('--gRing', Math.min(0.95, gloss*1.05));
-      ovGlaucoma.style.setProperty('--g1', Math.min(0.5, Math.max(0,(gloss-0.1)*0.6)));
-      ovGlaucoma.style.setProperty('--g2', Math.min(0.45, Math.max(0,(gloss-0.2)*0.55)));
-      ovGlaucoma.style.setProperty('--g3', Math.min(0.45, Math.max(0,(gloss-0.3)*0.6)));
-    }
+    if(gloss>0) ovGlaucoma.style.background = VisionFx.glaucomaBackground(gloss);
 
     // haze
     const haze = res.haze||0;
     ovHaze.style.opacity = haze>0 ? Math.min(1, 0.26+haze*0.72) : 0;
-    ovHaze.style.backdropFilter = `blur(${4+haze*14}px)`;
+    ovHaze.style.backdropFilter = `blur(${res.hazeBlur!=null ? res.hazeBlur : 4+haze*14}px)`;
     ovHaze.style.webkitBackdropFilter = ovHaze.style.backdropFilter;
     ovHaze.style.background = res.hazeColor || '';
 
@@ -788,8 +894,11 @@
     const bloom = res.bloom||0;
     if(bloom>0){
       // grayscale로 밝기(휘도) 기준으로만 걸러서, 색이 진한 물체가 아니라 실제로 밝은 빛만 번지게 한다
-      videoBloom.style.filter = `grayscale(100%) brightness(${68-6*bloom}%) contrast(${500+300*bloom}%) blur(${12+26*bloom}px) brightness(${200+160*bloom}%) sepia(80%) saturate(220%)`;
-      videoBloom.style.opacity = Math.min(1, 0.45+bloom*0.55);
+      // 광각장애(bloomWhite)는 노란기 없이 하얗게, 문턱을 낮춰 더 넓은 밝은 곳이 더 크게 번진다
+      videoBloom.style.filter = res.bloomWhite
+        ? `grayscale(100%) brightness(${78-4*bloom}%) contrast(${500+300*bloom}%) blur(${16+30*bloom}px) brightness(${240+180*bloom}%)`
+        : `grayscale(100%) brightness(${68-6*bloom}%) contrast(${500+300*bloom}%) blur(${12+26*bloom}px) brightness(${200+160*bloom}%) sepia(80%) saturate(220%)`;
+      videoBloom.style.opacity = Math.min(1, (res.bloomWhite ? 0.6 : 0.45)+bloom*(res.bloomWhite ? 0.4 : 0.55));
     } else {
       videoBloom.style.opacity = 0;
     }
@@ -798,14 +907,35 @@
     const glare = res.glare||0;
     ovGlare.style.opacity = glare>0 ? Math.min(0.85, glare*0.9) : 0;
 
-    // ghost (diplopia)
-    const ghost = res.ghost||0;
+    // ghost (diplopia) / 굴절장애(난시): 가로 양쪽으로 번진 상 / 노안: 초점이 어긋나 살짝 겹친 상
+    const ghost = res.ghost||0, astig = res.astig||0;
+    const defocus = res.defocus && !presbyopiaLoupeOn; // 돋보기 원 안은 선명해야 하므로 겹친 상을 끈다
+    videoGhost2.style.opacity = 0;
     if(ghost>0){
+      videoGhost.style.mixBlendMode = 'screen';
+      videoGhost.style.filter = 'none';
       videoGhost.style.opacity = Math.min(0.65, 0.15+ghost*0.6);
       videoGhost.style.transform = `translate(${4+ghost*22}px, ${2+ghost*8}px)`;
+    } else if(astig>0){
+      const off = 3+9*astig, blur = `blur(${0.6+1.2*astig}px)`;
+      [videoGhost, videoGhost2].forEach((v,i)=>{
+        v.style.mixBlendMode = 'normal';
+        v.style.filter = blur;
+        v.style.opacity = 0.42;
+        v.style.transform = `translate(${i ? -off : off}px, 0)`;
+      });
+    } else if(defocus){
+      videoGhost.style.mixBlendMode = 'normal';
+      videoGhost.style.filter = res.filter;
+      videoGhost.style.opacity = 0.38;
+      videoGhost.style.transform = `scale(${presbyScale()}) translate(2px, 3px)`;
     } else {
       videoGhost.style.opacity = 0;
     }
+
+    // 황반변성 변시증 - 암점 주변의 글자·선이 휘어 보이도록 캔버스에서 픽셀을 옮겨 그린다
+    if(res.warp){ amdWarpT = res.warp; amdCanvas.style.filter = res.filter || 'none'; startAmdCanvas(); }
+    else stopAmdCanvas();
 
     // 6번: 색각장애(적록색맹) - 캔버스에 프레임을 그려 픽셀 단위로 색상 매트릭스를 적용
     // (video 태그에 대한 SVG filter:url()은 Safari에서 렌더링되지 않아 캔버스 방식으로 전환)
@@ -821,10 +951,13 @@
       const at = +el.dataset.at;
       if(fTotal>at){
         const grow = Math.min(1, (fTotal-at)/0.28);
-        el.style.opacity = Math.min(0.92, 0.45+grow*0.5);
+        // 말기로 갈수록 개수뿐 아니라 진하기도 올라간다
+        const dark = Math.max(0, Math.min(1, (fTotal-0.6)/0.5));
+        el.style.opacity = Math.min(0.98, 0.45+grow*0.5+dark*0.1);
+        el.style.filter = dark>0 ? `brightness(${1-0.55*dark}) contrast(${1+0.4*dark})` : '';
         const baseW = +el.dataset.w, baseH = +el.dataset.h;
-        el.style.width = (baseW*(1+grow*0.5))+'%';
-        el.style.height = (baseH*(1+grow*0.5))+'%';
+        el.style.width = (baseW*(1+grow*0.5+dark*0.3))+'%';
+        el.style.height = (baseH*(1+grow*0.5+dark*0.3))+'%';
       } else {
         el.style.opacity = 0;
       }
@@ -839,9 +972,11 @@
         const isRed = el.classList.contains('red');
         const deepen = 0.55 + dTotal*0.6; // 말기로 갈수록 기존 반점도 계속 진해짐
         el.style.opacity = Math.min(0.97, (isRed ? 0.7 : 0.55) * growIn * deepen);
+        // 말기에는 기존 얼룩도 한층 더 커진다
+        const late = Math.max(0, Math.min(1, (dTotal-0.6)/0.4));
         const baseW = +el.dataset.w, baseH = +el.dataset.h;
-        el.style.width = (baseW*(1+growIn*0.7))+'%';
-        el.style.height = (baseH*(1+growIn*0.7))+'%';
+        el.style.width = (baseW*(1+growIn*0.7)*(1+late*0.6))+'%';
+        el.style.height = (baseH*(1+growIn*0.7)*(1+late*0.6))+'%';
       } else {
         el.style.opacity = 0;
       }
@@ -849,12 +984,11 @@
 
     // 조건별 조작법 안내 (개조식으로 간결하게)
     if(currentCond.id==='presbyopia'){
-      const state = presbyopiaZoom<0.35 ? '현재: 선명' : presbyopiaZoom>0.65 ? '현재: 흐림' : '현재: 보통';
       hintEl.textContent = presbyopiaLoupeOn
-        ? `🔍 누른 채 움직이면 동그라미 안만 잘 보여요 · 🤏 핀치로 흐림 조절 · ${state}`
-        : `🤏 확대=가까이(흐림) · 축소=멀리(선명) · ${state}`;
+        ? '🔍 누른 채 움직이면 동그라미 안만 잘 보여요'
+        : (presbyopiaNear ? '📖 가까운 글씨는 초점이 안 맞아 읽기 힘들어요' : '🏞 먼 곳은 또렷하게 잘 보여요');
     } else if(currentCond.id==='amd'){
-      hintEl.textContent = '👆 화면 터치 · 암점 위치 이동';
+      hintEl.textContent = '👆 화면 터치 · 암점 위치 이동 · 주변 글자·선이 휘어 보여요';
     } else if(currentCond.id==='accommodative'){
       hintEl.textContent = '🔄 자동 초점 흐림↔선명 반복';
     } else if(currentCond.id==='hemianopia'){
@@ -863,7 +997,9 @@
       hintEl.textContent = '✋ 손잡이 좌우 드래그 · 1(정상)·2(체험) 비교';
     }
 
-    compactInfo.textContent = `${currentCond.name} · ${sevText(severity)} ${severity}%`;
+    compactInfo.textContent = currentCond.id==='presbyopia'
+      ? `${currentCond.name} · ${presbyopiaNear ? '가까운 글씨 보기' : '먼 거리 보기'}`
+      : `${currentCond.name} · ${sevText(severity)} ${severity}%`;
 
     tipsToggleLabel.textContent = currentCond.group==='aging'
       ? '💡 어르신은 이렇게 어려워요'
@@ -1008,29 +1144,6 @@
     st.addEventListener('pointercancel', end);
   })();
 
-  // 1번: 노안 - 핀치줌 제스처로 거리(초점) 체험 + 시각적 확대/축소로 거리감 강화
-  (function(){
-    let startDist = 0, startZoom = presbyopiaZoom;
-    function dist(touches){
-      const dx = touches[0].clientX-touches[1].clientX, dy = touches[0].clientY-touches[1].clientY;
-      return Math.hypot(dx,dy);
-    }
-    stageEl().addEventListener('touchstart', e=>{
-      if(e.touches.length===2){ startDist = dist(e.touches); startZoom = presbyopiaZoom; }
-    }, {passive:true});
-    stageEl().addEventListener('touchmove', e=>{
-      if(e.touches.length===2 && currentCond.id==='presbyopia'){
-        const d = dist(e.touches);
-        const ratio = d/(startDist||d);
-        // 손가락을 벌리면(ratio>1, 핀치아웃=확대) 글자가 가까이 다가오는 느낌 -> zoom 증가(초점 안맞음)
-        // 손가락을 오므리면(ratio<1, 핀치인=축소) 글자가 멀어지는 느낌 -> zoom 감소(초점 맞음)
-        presbyopiaZoom = Math.max(0, Math.min(1, startZoom + (ratio-1)*1.3));
-        render();
-      }
-    }, {passive:true});
-    function stageEl(){ return document.getElementById('stage'); }
-  })();
-
   const stage = document.getElementById('stage');
   const divider = document.getElementById('divider');
   const simWrap = document.getElementById('simWrap');
@@ -1072,6 +1185,7 @@
       videoNormal.srcObject = stream;
       videoSim.srcObject = stream;
       videoGhost.srcObject = stream;
+      videoGhost2.srcObject = stream;
       videoBloom.srcObject = stream;
       permOverlay.style.display='none';
       render();

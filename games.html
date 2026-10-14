@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>노인 시각 체험</title>
+<title>일상생활 체험</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
 :root{
@@ -226,11 +226,35 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
       <feMergeNode in="ghostFaded"/>
     </feMerge>
   </filter>
+  <!-- 아래 필터들은 키오스크·지하철 안내 화면처럼 일반 HTML로 그린 부분에만 건다.
+       캔버스(물건 찾기 사진·노선도)는 일부 브라우저에서 SVG 필터가 적용되지 않아
+       drawCanvasFx()에서 픽셀을 직접 바꾼다. -->
+  <filter id="cbFilter" color-interpolation-filters="sRGB">
+    <feColorMatrix id="cbMatrix" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"/>
+  </filter>
+  <filter id="astigFilter" x="-10%" y="-5%" width="120%" height="110%">
+    <feGaussianBlur id="astigBlur" stdDeviation="4 0.3"/>
+  </filter>
+  <filter id="amdWarpFilter" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="turbulence" baseFrequency="0.018 0.022" numOctaves="1" seed="7" result="noise"/>
+    <feDisplacementMap id="amdDisp" in="SourceGraphic" in2="noise" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="bloomFilter" color-interpolation-filters="sRGB" x="-10%" y="-10%" width="120%" height="120%">
+    <!-- 밝기(휘도)가 문턱을 넘는 곳만 하얗게 남겨 크게 번지게 한 뒤 원본에 screen으로 더한다 -->
+    <feColorMatrix in="SourceGraphic" type="matrix" result="bright"
+      values="0.897 1.761 0.342 0 -1.86  0.897 1.761 0.342 0 -1.86  0.897 1.761 0.342 0 -1.86  0 0 0 1 0"/>
+    <feGaussianBlur in="bright" id="bloomBlur" stdDeviation="14" result="glow"/>
+    <feComponentTransfer in="glow" result="glowGain">
+      <feFuncR id="bloomGainR" type="linear" slope="1"/><feFuncG id="bloomGainG" type="linear" slope="1"/><feFuncB id="bloomGainB" type="linear" slope="1"/>
+    </feComponentTransfer>
+    <feBlend in="SourceGraphic" in2="glowGain" mode="screen"/>
+  </filter>
 </svg>
 
+<script src="assets/js/vision-fx.js"></script>
 <div id="home" class="screen active">
   <div class="home-logo">👁</div>
-  <div class="home-title">생활 속<br>상황극</div>
+  <div class="home-title">일상생활<br>체험</div>
   <div class="home-sub">보건복지시설 사회복무요원 직무교육<br>노화로 인한 시각 변화를 일상 속 상황으로 체험해봅시다</div>
   <div class="game-grid">
     <div class="game-card" onclick="startGame('items')" style="grid-column:span 2;">
@@ -262,10 +286,14 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
     </div>
     <div class="crow">
       <span class="clabel">단계</span>
-      <div class="cbtns">
+      <div class="cbtns" id="stageBtns">
         <div class="cb on" id="sb1" onclick="setS(1)">● 초기</div>
         <div class="cb"    id="sb2" onclick="setS(2)">●● 중기</div>
         <div class="cb"    id="sb3" onclick="setS(3)">●●● 말기</div>
+      </div>
+      <div class="cbtns" id="presbyBtns" style="display:none;">
+        <div class="cb on" id="pbNear" onclick="setPresbyNear(true)">📖 가까운 글씨 보기</div>
+        <div class="cb"    id="pbFar"  onclick="setPresbyNear(false)">🏞 먼 거리 보기</div>
       </div>
     </div>
     <div class="hintbar" id="vhint"></div>
@@ -278,7 +306,7 @@ var G={game:'items',d:'normal',s:1};
 var lastVisD='normal'; // 복시장애→다른 질환 전환 시에도 캔버스를 다시 그려 유령상 잔상을 지우기 위한 이전 질환 추적
 var timerInt=null,tLeft=20;
 var curGroup='aging';
-var presbyopiaZoom=0.3;
+var presbyopiaNear=true; // 노안: true=가까운 글씨 보기(초점 어긋남), false=먼 거리 보기(선명)
 var visFocus={x:0.5,y:0.5};
 var hemiSide='right';
 var DRAGGABLE_FOCUS=['amd','glaucoma','vf','glare'];
@@ -293,22 +321,34 @@ var VISION_AGING=[
   {id:'glaucoma',name:'녹내장',group:'aging',
     apply:function(t){return{filter:'contrast('+(100+4*t)+'%)',glaucomaLoss:t};}},
   {id:'amd',name:'황반변성',group:'aging',
-    apply:function(t){return{filter:'contrast('+(100-8*t)+'%) saturate('+(100-6*t)+'%)',central:t};}},
+    apply:function(t){return{filter:'contrast('+(100-8*t)+'%) saturate('+(100-6*t)+'%)',central:t,warp:t};}},
   {id:'diabetic',name:'당뇨망막병증',group:'aging',
-    apply:function(t){return{diabeticSpots:Math.min(1,t*1.15),floaters:Math.min(1,t*0.75)};}},
+    // 말기(증식성)로 갈수록 얼룩이 크고 많아지고, 유리체 출혈로 화면 전체가 붉게 흐려진다
+    apply:function(t){var e=Math.pow(t,1.3), red=Math.max(0,Math.min(1,(t-0.55)/0.4));
+      return{filter:'blur('+(0.2+2.4*e)+'px) saturate('+(100-15*t)+'%)',diabeticSpots:t*1.08,floaters:Math.min(1,t*0.75),
+        haze:red*0.3,hazeColor:'rgba(150,25,15,0.55)',hazeBlur:0};}},
   {id:'presbyopia',name:'노안',group:'aging',
-    apply:function(t){return{filter:'blur('+((1+5*t)*presbyopiaZoom)+'px) contrast('+(100-16*t*presbyopiaZoom)+'%)'};}},
+    // 단계 대신 '가까운 글씨 보기 / 먼 거리 보기'. 뿌옇게 하지 않고 초점만 어긋나 글자를 딱 읽기 힘든 정도
+    apply:function(){return presbyopiaNear?{filter:'blur(2.2px)',defocus:true}:{};}},
+  {id:'rp',name:'망막색소변성증',group:'aging',
+    // 녹내장(불규칙하게 지워짐)과 달리 사방이 고르게 좁아지고, 전체가 어둡고 뿌옇게(야맹증) 보인다
+    apply:function(t){return{filter:'brightness('+(100-40*t)+'%) contrast('+(100-25*t)+'%) saturate('+(100-30*t)+'%)',
+      vignette:0.15+0.8*t,vignetteSoft:true,haze:t*0.3,hazeColor:'rgba(70,74,84,0.5)',hazeBlur:1+3*t};}},
   {id:'hemianopia',name:'반맹',group:'aging',
     apply:function(t){return{hemi:t};}},
   {id:'floaters_dz',name:'비문증',group:'aging',
-    apply:function(t){return{filter:'contrast('+(100+4*t)+'%)',floaters:Math.min(1,t*1.5)};}}
+    apply:function(t){return{filter:'contrast('+(100+4*t)+'%)',floaters:Math.min(1.1,t*1.5)};}}
 ];
 var VISION_GENERAL=[
   {id:'vf',name:'시야장애',group:'general',apply:function(t){return{vignette:0.10+0.62*t,vignetteSoft:true};}},
   {id:'diplopia',name:'복시장애',group:'general',apply:function(t){return{filter:'contrast('+(100-4*t)+'%)',ghost:t};}},
-  {id:'colorblind',name:'색각장애(적록색맹)',group:'general',apply:function(t){return{filter:'sepia('+(16*t)+'%) saturate('+(100-55*t)+'%) hue-rotate(-'+(9*t)+'deg) contrast('+(100+5*t)+'%)'};}},
+  // 시각 체험과 같은 적록색맹 색 변환 — 색을 바래게만 하던 예전 방식과 달리 빨강·초록 계열이 실제로 비슷해 보인다
+  {id:'colorblind',name:'색각장애(적록색맹)',group:'general',apply:function(t){return{colorblind:t};}},
+  // 상이 가로 한 방향으로만 번져 보이는 난시
+  {id:'refractive',name:'굴절장애',group:'general',apply:function(t){return{filter:'blur('+(0.4+0.8*t)+'px)',astig:t};}},
   {id:'accommodative',name:'조절장애',group:'general',apply:function(t){return{filter:'blur('+(1+1.5*t)+'px) contrast('+(100-8*t)+'%)'};}},
-  {id:'glare',name:'광각장애(눈부심)',group:'general',apply:function(t){return{filter:'brightness('+(100+4*t)+'%) contrast('+(100-6*t)+'%)',glare:t};}}
+  // 백내장의 '밝은 곳이 번지는 효과'를 더 하얗고 강하게 + 눌러서 옮기는 눈부신 빛
+  {id:'glare',name:'광각장애(눈부심)',group:'general',apply:function(t){return{filter:'brightness('+(104+8*t)+'%) contrast('+(100-18*t)+'%) saturate('+(100-10*t)+'%)',glare:t,bloomWhite:0.45+0.55*t};}}
 ];
 var VISION_CONDITIONS=[{id:'normal',name:'정상',group:'both',apply:function(){return{};}}].concat(VISION_AGING,VISION_GENERAL);
 var VISION_MAP={}; VISION_CONDITIONS.forEach(function(c){VISION_MAP[c.id]=c;});
@@ -324,7 +364,12 @@ var VISION_THREAD_SPOTS=[
   {l:'26%',t:'46%',w:'16%',h:'10%',delay:'0.8s',dur:'10s',rot:'30deg',at:0.62},
   {l:'70%',t:'34%',w:'17%',h:'11%',delay:'2.6s',dur:'13s',rot:'-26deg',at:0.74},
   {l:'40%',t:'74%',w:'20%',h:'12%',delay:'1.6s',dur:'9.5s',rot:'10deg',at:0.85},
-  {l:'80%',t:'52%',w:'15%',h:'9%',delay:'3.4s',dur:'11.5s',rot:'-12deg',at:0.94}
+  {l:'80%',t:'52%',w:'15%',h:'9%',delay:'3.4s',dur:'11.5s',rot:'-12deg',at:0.94},
+  // 비문증 말기에만 더해지는 부유물
+  {l:'14%',t:'30%',w:'20%',h:'12%',delay:'1.9s',dur:'10.5s',rot:'-20deg',at:0.98},
+  {l:'50%',t:'54%',w:'22%',h:'13%',delay:'0.3s',dur:'12.5s',rot:'18deg',at:1.0},
+  {l:'66%',t:'84%',w:'18%',h:'11%',delay:'2.4s',dur:'9s',rot:'4deg',at:1.02},
+  {l:'36%',t:'6%',w:'19%',h:'12%',delay:'1.0s',dur:'11s',rot:'-6deg',at:1.04}
 ];
 var VISION_FLY_SPOTS=[
   {l:'72%',t:'46%',w:'3.2%',h:'2.8%',delay:'.6s',dur:'7s',at:0.06},
@@ -336,7 +381,13 @@ var VISION_FLY_SPOTS=[
   {l:'48%',t:'14%',w:'2.6%',h:'2.3%',delay:'0.4s',dur:'10s',at:0.68},
   {l:'34%',t:'58%',w:'2.7%',h:'2.4%',delay:'2.0s',dur:'6.8s',at:0.76},
   {l:'62%',t:'82%',w:'2.4%',h:'2.1%',delay:'1.4s',dur:'9.4s',at:0.85},
-  {l:'8%',t:'48%',w:'2.9%',h:'2.5%',delay:'2.8s',dur:'7.8s',at:0.93}
+  {l:'8%',t:'48%',w:'2.9%',h:'2.5%',delay:'2.8s',dur:'7.8s',at:0.93},
+  {l:'26%',t:'18%',w:'2.8%',h:'2.4%',delay:'1.7s',dur:'8.2s',at:0.97},
+  {l:'56%',t:'36%',w:'3.0%',h:'2.6%',delay:'0.9s',dur:'7.2s',at:0.99},
+  {l:'76%',t:'58%',w:'2.6%',h:'2.3%',delay:'2.5s',dur:'9.6s',at:1.01},
+  {l:'44%',t:'68%',w:'2.9%',h:'2.5%',delay:'3.1s',dur:'6.6s',at:1.03},
+  {l:'90%',t:'40%',w:'2.5%',h:'2.2%',delay:'0.2s',dur:'8.8s',at:1.05},
+  {l:'22%',t:'60%',w:'2.7%',h:'2.4%',delay:'1.3s',dur:'7.6s',at:1.06}
 ];
 var VISION_THREAD_SVG='<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><path d="M4 30 C 20 5, 35 55, 50 28 S 78 4, 96 32" fill="none" stroke="rgba(14,12,10,0.22)" stroke-width="5" stroke-linecap="round" filter="blur(1.5px)"/><path d="M4 30 C 20 5, 35 55, 50 28 S 78 4, 96 32" fill="none" stroke="rgba(215,212,200,0.4)" stroke-width="2.2" stroke-linecap="round"/></svg>';
 var VISION_DIABETIC_SPOTS=[
@@ -353,7 +404,16 @@ var VISION_DIABETIC_SPOTS=[
   {l:'25%',t:'42%',w:'10%',h:'8%',at:0.72,red:true},
   {l:'58%',t:'65%',w:'11%',h:'9%',at:0.78,red:true},
   {l:'45%',t:'45%',w:'9%',h:'7%',at:0.85,red:true},
-  {l:'70%',t:'20%',w:'8%',h:'6%',at:0.90,red:true}
+  {l:'70%',t:'20%',w:'8%',h:'6%',at:0.90,red:true},
+  // 말기에만 더해지는 큰 얼룩·출혈 반점
+  {l:'8%',t:'26%',w:'11%',h:'9%',at:0.92},
+  {l:'84%',t:'70%',w:'10%',h:'8%',at:0.93,red:true},
+  {l:'48%',t:'8%',w:'12%',h:'9%',at:0.94},
+  {l:'12%',t:'72%',w:'12%',h:'10%',at:0.95,red:true},
+  {l:'66%',t:'50%',w:'10%',h:'8%',at:0.96},
+  {l:'36%',t:'80%',w:'11%',h:'9%',at:0.97,red:true},
+  {l:'86%',t:'12%',w:'9%',h:'8%',at:0.98},
+  {l:'30%',t:'32%',w:'9%',h:'8%',at:0.99,red:true}
 ];
 
 /* ── 질환 선택 UI (탭+칩) ── */
@@ -382,11 +442,8 @@ function visFilterTarget(){
   return null;
 }
 function visHintText(d){
-  if(d==='presbyopia'){
-    var state=presbyopiaZoom<0.35?'현재: 선명':presbyopiaZoom>0.65?'현재: 흐림':'현재: 보통';
-    return '🤏 확대=가까이(흐림) · 축소=멀리(선명) · '+state;
-  }
-  if(d==='amd') return '👆 화면 터치 · 암점 위치 이동';
+  if(d==='presbyopia') return presbyopiaNear?'📖 가까운 글씨는 초점이 안 맞아 읽기 힘들어요':'🏞 먼 곳은 또렷하게 잘 보여요';
+  if(d==='amd') return '👆 화면 터치 · 암점 위치 이동 · 주변 글자·선이 휘어 보여요';
   if(d==='glaucoma'||d==='vf') return '👆 화면 터치 · 또렷하게 보이는 위치 이동';
   if(d==='glare') return '👆 화면 터치 · 눈부신 위치 이동';
   if(d==='hemianopia') return '👆 화면 터치 · 탭한 쪽이 보이는 쪽으로 전환';
@@ -474,7 +531,12 @@ function updateVisionOverlay(){
     if(galpha) galpha.setAttribute('slope',0.2+res.ghost*0.6);
     baseFilter=(baseFilter==='none'?'':baseFilter+' ')+'url(#ghostFilter)';
   }
+  // 적록색맹·난시·변시증·빛번짐은 SVG 필터로 — 키오스크는 화면 전체에, 지하철은 노선도
+  // 캔버스를 뺀 안내 부분에만 건다(노선도 캔버스는 drawCanvasFx가 픽셀로 직접 처리).
+  var svgFx=domSvgFx(res);
+  if(svgFx && G.game==='kiosk') baseFilter=(baseFilter==='none'?'':baseFilter+' ')+svgFx;
   if(target) target.style.filter=baseFilter;
+  applySubwayDomFx();
 
   var vig=res.vignette||0;
   var ovV=document.getElementById('voVignette');
@@ -510,28 +572,21 @@ function updateVisionOverlay(){
     }
   }
 
+  // 녹내장 - 코 쪽과 위·아래부터 불규칙하게 지워지고 중심은 또렷하게 (모양은 vision-fx.js, 시각 체험과 동일)
   var gloss=res.glaucomaLoss||0;
   var ovG=document.getElementById('voGlaucoma');
   if(ovG){
     ovG.style.opacity=gloss>0?1:0;
-    if(gloss>0){
-      var fx=visFocus.x*100, fy=visFocus.y*100, dx=fx-50, dy=fy-50;
-      var gRing=Math.min(0.95,gloss*1.05), g1=Math.min(0.5,Math.max(0,(gloss-0.1)*0.6)),
-          g2=Math.min(0.45,Math.max(0,(gloss-0.2)*0.55)), g3=Math.min(0.45,Math.max(0,(gloss-0.3)*0.6));
-      ovG.style.background=
-        'radial-gradient(circle at '+fx+'% '+fy+'%, transparent 34%, rgba(2,2,2,'+gRing+') 66%),'+
-        'radial-gradient(ellipse 46% 34% at '+(6+dx)+'% '+(40+dy)+'%, rgba(2,2,2,'+g1+') 0%, rgba(2,2,2,0) 76%),'+
-        'radial-gradient(ellipse 50% 30% at '+(52+dx)+'% '+(2+dy)+'%, rgba(2,2,2,'+g2+') 0%, rgba(2,2,2,0) 78%),'+
-        'radial-gradient(ellipse 44% 32% at '+(60+dx)+'% '+(100+dy)+'%, rgba(2,2,2,'+g3+') 0%, rgba(2,2,2,0) 78%)';
-    }
+    if(gloss>0) ovG.style.background=VisionFx.glaucomaBackground(gloss,visFocus.x*100,visFocus.y*100);
   }
 
   var haze=res.haze||0;
   var ovHz=document.getElementById('voHaze');
   if(ovHz){
     ovHz.style.opacity=haze>0?Math.min(1,0.26+haze*0.72):0;
-    ovHz.style.backdropFilter='blur('+(4+haze*14)+'px)';
+    ovHz.style.backdropFilter='blur('+(res.hazeBlur!=null?res.hazeBlur:4+haze*14)+'px)';
     ovHz.style.webkitBackdropFilter=ovHz.style.backdropFilter;
+    ovHz.style.background=res.hazeColor||'';
   }
 
   var glare=res.glare||0;
@@ -550,9 +605,12 @@ function updateVisionOverlay(){
       var at=+el.dataset.at;
       if(fTotal>at){
         var grow=Math.min(1,(fTotal-at)/0.28);
-        el.style.opacity=Math.min(0.92,0.45+grow*0.5);
+        // 말기로 갈수록 개수뿐 아니라 진하기도 올라간다
+        var dark=Math.max(0,Math.min(1,(fTotal-0.6)/0.5));
+        el.style.opacity=Math.min(0.98,0.45+grow*0.5+dark*0.1);
+        el.style.filter=dark>0?'brightness('+(1-0.55*dark)+') contrast('+(1+0.4*dark)+')':'';
         var baseW=+el.dataset.w, baseH=+el.dataset.h;
-        el.style.width=(baseW*(1+grow*0.5))+'%'; el.style.height=(baseH*(1+grow*0.5))+'%';
+        el.style.width=(baseW*(1+grow*0.5+dark*0.3))+'%'; el.style.height=(baseH*(1+grow*0.5+dark*0.3))+'%';
       } else { el.style.opacity=0; }
     });
   }
@@ -567,28 +625,105 @@ function updateVisionOverlay(){
         var isRed=el.classList.contains('red');
         var deepen=0.55+dTotal*0.6;
         el.style.opacity=Math.min(0.97,(isRed?0.7:0.55)*growIn*deepen);
+        var late=Math.max(0,Math.min(1,(dTotal-0.6)/0.4)); // 말기에는 기존 얼룩도 한층 더 커진다
         var baseW=+el.dataset.w, baseH=+el.dataset.h;
-        el.style.width=(baseW*(1+growIn*0.7))+'%'; el.style.height=(baseH*(1+growIn*0.7))+'%';
+        el.style.width=(baseW*(1+growIn*0.7)*(1+late*0.6))+'%'; el.style.height=(baseH*(1+growIn*0.7)*(1+late*0.6))+'%';
       } else { el.style.opacity=0; }
     });
   }
 
   if(cond.id==='accommodative') startFocusLagCycle(); else stopFocusLagCycle();
 
-  // 복시장애의 캔버스 유령상은 실제로 캔버스를 다시 그려야 반영되므로,
-  // 질환/단계가 바뀔 때도 해당 캔버스를 다시 그려서 즉시 반영되게 함.
-  // 복시장애로 "들어갈 때"뿐 아니라 "나갈 때"도 다시 그려야, 이미 캔버스 픽셀에 구워진
-  // 유령상 잔상이 다른 질환으로 바꿔도 그대로 남아있는 문제가 생기지 않는다.
-  if(cond.id==='diplopia' || lastVisD==='diplopia'){
-    if(G.game==='items' && iCtx) drawItems();
-    if(G.game==='subway' && subMapCtx) drawSubwayMap();
-  }
+  // 캔버스에 직접 굽는 효과(복시·색맹·난시·빛번짐·변시증)는 실제로 캔버스를 다시 그려야
+  // 반영되므로, 질환/단계/위치가 바뀔 때도 해당 캔버스를 다시 그린다. 그 질환으로 "들어갈 때"
+  // 뿐 아니라 "나갈 때"도 다시 그려야, 이미 픽셀에 구워진 효과가 남아있는 문제가 생기지 않는다.
+  if(CANVAS_FX.indexOf(cond.id)>=0 || CANVAS_FX.indexOf(lastVisD)>=0) requestCanvasRedraw();
   lastVisD=cond.id;
 }
 
-// 복시장애(겹쳐보임)를 캔버스에 직접 그림 - 물건찾기/지하철처럼 캔버스가 낀 화면은
-// 일부 브라우저에서 부모에 건 SVG 필터가 캔버스 자손까지 적용되지 않는 경우가 있어,
-// 그 화면들은 SVG 필터 대신 캔버스 픽셀에 직접 유령상을 겹쳐 그려서 항상 보이게 한다.
+var CANVAS_FX=['diplopia','colorblind','refractive','glare','amd','presbyopia'];
+var canvasRedrawPending=false;
+// 황반변성 암점을 끌 때처럼 연달아 불려도 한 프레임에 한 번만 다시 그린다
+function requestCanvasRedraw(){
+  if(canvasRedrawPending) return;
+  canvasRedrawPending=true;
+  requestAnimationFrame(function(){
+    canvasRedrawPending=false;
+    if(G.game==='items' && iCtx) drawItems();
+    if(G.game==='subway' && subMapCtx) drawSubwayMap();
+  });
+}
+
+function domSvgFx(res){
+  if(res.colorblind){
+    var m=document.getElementById('cbMatrix'); if(m) m.setAttribute('values',VisionFx.protanopiaSvgValues(res.colorblind));
+    return 'url(#cbFilter)';
+  }
+  if(res.astig){
+    var b=document.getElementById('astigBlur'); if(b) b.setAttribute('stdDeviation',(1.5+3.5*res.astig)+' 0.3');
+    return 'url(#astigFilter)';
+  }
+  if(res.warp){
+    var dsp=document.getElementById('amdDisp'); if(dsp) dsp.setAttribute('scale',6+10*res.warp);
+    return 'url(#amdWarpFilter)';
+  }
+  if(res.bloomWhite){
+    var bl=document.getElementById('bloomBlur'); if(bl) bl.setAttribute('stdDeviation',10+12*res.bloomWhite);
+    ['R','G','B'].forEach(function(c){ var f=document.getElementById('bloomGain'+c); if(f) f.setAttribute('slope',0.35+0.55*res.bloomWhite); });
+    return 'url(#bloomFilter)';
+  }
+  return '';
+}
+// 지하철 화면은 안내 문구·역 카드처럼 HTML로 된 부분에만 SVG 효과를 건다 —
+// 노선도 캔버스까지 감싼 부모에 걸면 일부 브라우저에서 캔버스에 적용되지 않거나 두 번 적용된다.
+function applySubwayDomFx(){
+  if(G.game!=='subway') return;
+  var c=document.getElementById('subway-content'); if(!c) return;
+  var cond=VISION_MAP[G.d]||VISION_MAP.normal;
+  var res=(cond.id==='normal')?{}:(cond.apply(STAGE_T[G.s-1])||{});
+  var fx=domSvgFx(res);
+  [].slice.call(c.children).forEach(function(el){ if(el.id!=='subway-map-area') el.style.filter=fx; });
+}
+
+function setPresbyNear(near){
+  presbyopiaNear=near;
+  document.getElementById('pbNear').classList.toggle('on',near);
+  document.getElementById('pbFar').classList.toggle('on',!near);
+  updateVisionOverlay();
+}
+// 노안만 초기·중기·말기 대신 '가까운 글씨 보기 / 먼 거리 보기' 두 버튼을 보여준다
+function syncStageButtons(){
+  var isPresby=G.d==='presbyopia';
+  document.getElementById('stageBtns').style.display=isPresby?'none':'';
+  document.getElementById('presbyBtns').style.display=isPresby?'':'none';
+  document.getElementById('pbNear').classList.toggle('on',presbyopiaNear);
+  document.getElementById('pbFar').classList.toggle('on',!presbyopiaNear);
+}
+
+// 물건찾기/지하철처럼 캔버스가 낀 화면은 일부 브라우저에서 부모에 건 SVG 필터가 캔버스
+// 자손까지 적용되지 않는 경우가 있어, 그 화면들은 SVG 필터 대신 캔버스 픽셀에 직접 효과를 굽는다.
+function drawCanvasFx(ctx,canvas){
+  var cond=VISION_MAP[G.d]; if(!cond||cond.id==='normal') return;
+  var res=cond.apply(STAGE_T[G.s-1])||{};
+  var rect=canvas.getBoundingClientRect();
+  var scale=rect.width?canvas.width/rect.width:1;
+  try{
+    if(res.colorblind){
+      var img=ctx.getImageData(0,0,canvas.width,canvas.height);
+      ctx.putImageData(VisionFx.applyColorMatrix(img,VisionFx.protanopiaMatrix(res.colorblind)),0,0);
+    }
+    if(res.astig) VisionFx.smearCanvas(ctx,(2+6*res.astig)*scale,0.8);
+    if(res.defocus) VisionFx.smearCanvas(ctx,2*scale,0.5); // 노안: 초점이 어긋나 살짝 겹친 상
+    if(res.bloomWhite) VisionFx.bloomCanvas(ctx,res.bloomWhite);
+    if(res.warp){
+      var W=canvas.width, H=canvas.height, r=W*(0.14+0.14*res.warp)*1.6;
+      VisionFx.warpPatch(ctx,ctx,visFocus.x*W,visFocus.y*H,r,r*(0.05+0.07*res.warp),0);
+    }
+  }catch(err){ /* 이미지가 아직 로딩 중이거나 픽셀을 읽을 수 없으면 효과만 건너뛴다 */ }
+  drawCanvasGhost(ctx,canvas);
+}
+
+// 복시장애(겹쳐보임)를 캔버스에 직접 그림
 function drawCanvasGhost(ctx,canvas){
   if(G.d!=='diplopia') return;
   var t=STAGE_T[G.s-1];
@@ -603,7 +738,7 @@ function drawCanvasGhost(ctx,canvas){
   ctx.restore();
 }
 
-/* AMD 암점 드래그 이동 + 노안 핀치줌 (모든 게임 공통, #garea에 한 번만 연결) */
+/* AMD 암점 드래그 이동 등 화면 터치 조작 (모든 게임 공통, #garea에 한 번만 연결) */
 (function(){
   var garea=document.getElementById('garea');
   if(!garea) return;
@@ -637,21 +772,9 @@ function drawCanvasGhost(ctx,canvas){
     if((dragMoved||hemiTapped) && (DRAGGABLE_FOCUS.indexOf(G.d)>=0||G.d==='hemianopia')){ e.stopPropagation(); e.preventDefault(); dragMoved=false; hemiTapped=false; }
   },true);
 
-  var startDist=0, startZoom=0.3;
-  function touchDist(t){return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);}
-  garea.addEventListener('touchstart',function(e){
-    if(e.touches.length>=2){ multiTouchActive=true; startDist=touchDist(e.touches); startZoom=presbyopiaZoom; }
-  },{passive:true});
-  garea.addEventListener('touchmove',function(e){
-    if(e.touches.length===2 && G.d==='presbyopia'){
-      e.preventDefault();
-      var ratio=touchDist(e.touches)/(startDist||1);
-      presbyopiaZoom=Math.max(0,Math.min(1,startZoom+(ratio-1)*1.3));
-      updateVisionOverlay();
-    }
-  },{passive:false});
-  // 두 손가락(핀치줌) 동작 중이었다면, 손가락을 뗄 때 발생하는 탭이 물건 찾기 등의 선택으로 이어지지 않게 막음
+  // 두 손가락으로 만지던 중이었다면, 손가락을 뗄 때 발생하는 탭이 물건 찾기 등의 선택으로 이어지지 않게 막음
   var multiTouchActive=false;
+  garea.addEventListener('touchstart',function(e){ if(e.touches.length>=2) multiTouchActive=true; },{passive:true});
   garea.addEventListener('touchend',function(e){
     if(multiTouchActive){
       e.stopPropagation(); e.preventDefault();
@@ -665,7 +788,7 @@ function showScr(id){document.querySelectorAll('.screen').forEach(function(s){s.
 function startGame(game){
   G.game=game;G.d='normal';G.s=1;curGroup='aging';
   document.querySelectorAll('#gtabs .gtab').forEach(function(t){t.classList.toggle('on',t.dataset.g==='aging');});
-  renderChips();
+  renderChips(); presbyopiaNear=true; syncStageButtons();
   [1,2,3].forEach(function(i){document.getElementById('sb'+i).classList.toggle('on',i===1);});
   document.getElementById('gtitle').textContent={path:'병원 길찾기',items:'물건 찾기',write:'안내문 따라쓰기',kiosk:'키오스크 주문',subway:'지하철 노선도 찾기'}[game];
   tLeft=timeForGame(1);updTimer();stopFlash();showScr('game-screen');buildGame();startTimer();
@@ -673,7 +796,7 @@ function startGame(game){
 function exitGame(){stopTimer();stopFlash();stopFocusLagCycle();showScr('home');}
 function setD(d){
   G.d=d;renderChips();
-  visFocus={x:0.5,y:0.5};presbyopiaZoom=0.3;hemiSide='right';
+  visFocus={x:0.5,y:0.5};presbyopiaNear=true;hemiSide='right';syncStageButtons();
   stopTimer();stopFlash();tLeft=timeForGame(G.s);updTimer();updateVisionOverlay();startTimer();
 }
 function setS(s){
@@ -787,7 +910,7 @@ function drawItems(){
     ctx.restore();
   });
 
-  drawCanvasGhost(ctx,iCvs);
+  drawCanvasFx(ctx,iCvs);
 }
 
 function tapItems(tx,ty){
@@ -1199,6 +1322,7 @@ function renderSubwayScreen(){
     row.appendChild(ok);
     c.appendChild(row);
   }
+  applySubwayDomFx(); // 화면을 새로 그릴 때마다 새로 생긴 안내 요소에도 시각 효과를 다시 건다
 }
 
 function updSubwayStatus(){
@@ -1266,7 +1390,7 @@ function drawSubwayMap(){
     ctx.restore();
   });
 
-  drawCanvasGhost(ctx,subMapCvs);
+  drawCanvasFx(ctx,subMapCvs);
 }
 
 </script>
