@@ -97,20 +97,15 @@
     dstCtx.drawImage(tmp, x0, y0);
   }
 
-  // 굴절장애(난시) — 한 방향(가로)으로만 상이 번져 보이게, 조금씩 비켜 그린
-  // 사본을 겹친다. ctx.filter(blur)는 iOS Safari에서 동작하지 않아 쓰지 않는다.
-  function smearCanvas(ctx, len, alpha){
+  // 노안 — 상이 한 점에 맺히지 못해 글자 획이 여러 겹으로 어긋나 보이게, 서로 다른
+  // 방향으로 비켜 그린 사본을 반투명하게 겹친다. offsets: [[dx,dy,alpha], ...]
+  // ctx.filter(blur)는 iOS Safari에서 동작하지 않아 쓰지 않는다.
+  function ghostCanvas(ctx, offsets){
     var c = ctx.canvas, tmp = document.createElement('canvas');
     tmp.width = c.width; tmp.height = c.height;
     tmp.getContext('2d').drawImage(c, 0, 0);
-    var steps = 4;
     ctx.save();
-    for(var i=1;i<=steps;i++){
-      var off = len*i/steps;
-      ctx.globalAlpha = alpha*(1-(i-1)/steps)*0.6;
-      ctx.drawImage(tmp, off, 0);
-      ctx.drawImage(tmp, -off, 0);
-    }
+    offsets.forEach(function(o){ ctx.globalAlpha = o[2]; ctx.drawImage(tmp, o[0], o[1]); });
     ctx.restore();
   }
 
@@ -146,7 +141,7 @@
     applyColorMatrix: applyColorMatrix,
     protanopiaSvgValues: protanopiaSvgValues,
     warpPatch: warpPatch,
-    smearCanvas: smearCanvas,
+    ghostCanvas: ghostCanvas,
     bloomCanvas: bloomCanvas
   };
 })();

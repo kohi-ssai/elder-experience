@@ -251,7 +251,6 @@ input[type=range]::-moz-range-thumb{ width:16px;height:16px;border-radius:50%;ba
       <div class="wcvs-empty-hint" id="wempty-hint">&#128070; 연한 글씨 위에 따라 써보세요</div>
     </div>
     <div class="wstats-row">
-      <div class="wsbox"><div class="wsval" id="wsv-strokes">0</div><div class="wslbl">획 수</div></div>
       <div class="wsbox"><div class="wsval" id="wsv-lv">정상</div><div class="wslbl">지금 떨림 단계</div></div>
     </div>
     <div class="wbtn-row">
@@ -1055,10 +1054,9 @@ function wMoveDraw(x,y){
 }
 function wEndDraw(){ W.drawing=false; }
 function wUpdateStats(){
-  // 예전의 안정도·평균 떨림 숫자는 사용자가 얼마나 잘 썼는지가 아니라 앱이
+  // 예전의 획 수·안정도·평균 떨림 숫자는 사용자가 얼마나 잘 썼는지가 아니라 앱이
   // 넣은 떨림 크기를 잰 값이라(같은 단계면 누가 써도 같은 값) 의미가 없어서 뺐다 —
   // 대신 지금 몇 단계 떨림으로 쓰고 있는지만 보여준다.
-  document.getElementById('wsv-strokes').textContent=W.strokes;
   var lv=document.getElementById('wsv-lv'); lv.textContent=LV_LABEL[W.level]; lv.className='wsval '+(W.level===0?'good':W.level===1?'warn':'bad');
 }
 function wShowResult(){

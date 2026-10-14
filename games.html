@@ -154,7 +154,15 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
 .kiosk-wrap{position:relative;width:100%;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;background:#f5ead9;}
 .kiosk-content{flex:1;overflow-y:auto;padding:20px 16px 28px;display:flex;flex-direction:column;gap:16px;}
 .kiosk-title{font-size:22px;font-weight:900;color:#7c2d12;text-align:center;text-shadow:1px 1px 0 #fde68a;margin-bottom:4px;}
-.kiosk-mission-bar{background:#1e293b;color:#fbbf24;font-size:14px;font-weight:800;text-align:center;padding:10px 12px;flex-shrink:0;line-height:1.5;position:sticky;top:0;z-index:5;}
+/* 주문할 메뉴(목표)가 눈에 잘 띄도록 — 노란 테두리 카드로 크게 보여주고, 시작할 때
+   몇 번 커졌다 작아지며 깜빡여 시선을 끈 뒤에는 은은한 빛으로 계속 강조한다 */
+.kiosk-mission-bar{background:#1e293b;padding:8px 10px;flex-shrink:0;position:sticky;top:0;z-index:5;}
+.kiosk-mission-card{border:3px solid #fbbf24;border-radius:14px;background:rgba(251,191,36,.14);padding:8px 12px;text-align:center;
+  animation:kmPulse .9s ease-in-out 4, kmGlow 2.4s ease-in-out 3.6s infinite;}
+.kiosk-mission-card .km-lbl{color:#fde68a;font-size:12.5px;font-weight:800;letter-spacing:.02em;}
+.kiosk-mission-card .km-txt{color:#fff;font-size:17px;font-weight:900;line-height:1.45;margin-top:2px;}
+@keyframes kmPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(251,191,36,.7);}50%{transform:scale(1.05);box-shadow:0 0 0 8px rgba(251,191,36,0);}}
+@keyframes kmGlow{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,0);}50%{box-shadow:0 0 14px 2px rgba(251,191,36,.55);}}
 .kiosk-drink-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .kiosk-drink-btn{background:#fff;border:3px solid #d6c3a1;border-radius:18px;padding:18px 10px;text-align:center;cursor:pointer;transition:transform .12s;}
 .kiosk-drink-btn:active{transform:scale(.95);}
@@ -232,8 +240,13 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
   <filter id="cbFilter" color-interpolation-filters="sRGB">
     <feColorMatrix id="cbMatrix" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"/>
   </filter>
-  <filter id="astigFilter" x="-10%" y="-5%" width="120%" height="110%">
-    <feGaussianBlur id="astigBlur" stdDeviation="4 0.3"/>
+  <!-- 노안: 상이 한 점에 맺히지 못해 글자 획이 여러 겹으로 어긋나 겹쳐 보인다(뿌연 안개 아님) -->
+  <filter id="presbyFilter" x="-5%" y="-5%" width="110%" height="110%">
+    <feOffset in="SourceGraphic" dx="4" dy="3" result="o1"/>
+    <feOffset in="SourceGraphic" dx="-4" dy="-2" result="o2"/>
+    <feComponentTransfer in="o1" result="o1a"><feFuncA type="linear" slope="0.5"/></feComponentTransfer>
+    <feComponentTransfer in="o2" result="o2a"><feFuncA type="linear" slope="0.4"/></feComponentTransfer>
+    <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="o1a"/><feMergeNode in="o2a"/></feMerge>
   </filter>
   <filter id="amdWarpFilter" x="-5%" y="-5%" width="110%" height="110%">
     <feTurbulence type="turbulence" baseFrequency="0.018 0.022" numOctaves="1" seed="7" result="noise"/>
@@ -294,6 +307,7 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
       <div class="cbtns" id="presbyBtns" style="display:none;">
         <div class="cb on" id="pbNear" onclick="setPresbyNear(true)">📖 가까운 글씨 보기</div>
         <div class="cb"    id="pbFar"  onclick="setPresbyNear(false)">🏞 먼 거리 보기</div>
+        <div class="cb"    id="pbLoupe" onclick="togglePresbyLoupe()">🔍 돋보기</div>
       </div>
     </div>
     <div class="hintbar" id="vhint"></div>
@@ -309,7 +323,8 @@ var curGroup='aging';
 var presbyopiaNear=true; // 노안: true=가까운 글씨 보기(초점 어긋남), false=먼 거리 보기(선명)
 var visFocus={x:0.5,y:0.5};
 var hemiSide='right';
-var DRAGGABLE_FOCUS=['amd','glaucoma','vf','glare'];
+var DRAGGABLE_FOCUS=['amd','glaucoma','vf','glare','rp'];
+var presbyLoupeOn=false; // 노안 돋보기(누른 자리 원 안만 또렷하고 크게)
 
 /* ── VISION CONDITIONS (vision.html에서 이식, 게임용으로 일부 종류/강도 조정) ── */
 var VISION_AGING=[
@@ -317,7 +332,8 @@ var VISION_AGING=[
     // 중기·말기가 화면을 거의 완전히 안 보이게 만들어서(블러+뿌연 막 이중 적용)
     // 게임 진행 자체가 불가능하다는 피드백으로 곡선을 완만하게 낮춤 — 말기에도
     // 형태·색은 어느 정도 분간되도록 함. haze는 필터와 별개로 더 낮게 눌러줌.
-    apply:function(t){var e=Math.pow(t,1.4);return{filter:'blur('+(0.3+4*e)+'px) contrast('+(100-35*e)+'%) saturate('+(100-28*e)+'%) sepia('+(4+22*e)+'%) brightness('+(100+3*t)+'%)',haze:e*0.55};}},
+    // 시각 체험과 같이 수정체가 누렇게 변한 색(sepia·채도)과 노란 안개를 더한다
+    apply:function(t){var e=Math.pow(t,1.4);return{filter:'blur('+(0.3+4*e)+'px) contrast('+(100-30*e)+'%) sepia('+(35+55*t)+'%) saturate('+(115+45*t)+'%) hue-rotate('+(-6*t)+'deg) brightness('+(102+6*t)+'%)',haze:e*0.4,hazeColor:'rgba(240,210,120,0.55)',hazeBlur:2+4*e};}},
   {id:'glaucoma',name:'녹내장',group:'aging',
     apply:function(t){return{filter:'contrast('+(100+4*t)+'%)',glaucomaLoss:t};}},
   {id:'amd',name:'황반변성',group:'aging',
@@ -329,7 +345,7 @@ var VISION_AGING=[
         haze:red*0.3,hazeColor:'rgba(150,25,15,0.55)',hazeBlur:0};}},
   {id:'presbyopia',name:'노안',group:'aging',
     // 단계 대신 '가까운 글씨 보기 / 먼 거리 보기'. 뿌옇게 하지 않고 초점만 어긋나 글자를 딱 읽기 힘든 정도
-    apply:function(){return presbyopiaNear?{filter:'blur(2.2px)',defocus:true}:{};}},
+    apply:function(){return presbyopiaNear?{filter:'blur(0.6px)',defocus:true}:{};}},
   {id:'rp',name:'망막색소변성증',group:'aging',
     // 녹내장(불규칙하게 지워짐)과 달리 사방이 고르게 좁아지고, 전체가 어둡고 뿌옇게(야맹증) 보인다
     apply:function(t){return{filter:'brightness('+(100-40*t)+'%) contrast('+(100-25*t)+'%) saturate('+(100-30*t)+'%)',
@@ -344,8 +360,6 @@ var VISION_GENERAL=[
   {id:'diplopia',name:'복시장애',group:'general',apply:function(t){return{filter:'contrast('+(100-4*t)+'%)',ghost:t};}},
   // 시각 체험과 같은 적록색맹 색 변환 — 색을 바래게만 하던 예전 방식과 달리 빨강·초록 계열이 실제로 비슷해 보인다
   {id:'colorblind',name:'색각장애(적록색맹)',group:'general',apply:function(t){return{colorblind:t};}},
-  // 상이 가로 한 방향으로만 번져 보이는 난시
-  {id:'refractive',name:'굴절장애',group:'general',apply:function(t){return{filter:'blur('+(0.4+0.8*t)+'px)',astig:t};}},
   {id:'accommodative',name:'조절장애',group:'general',apply:function(t){return{filter:'blur('+(1+1.5*t)+'px) contrast('+(100-8*t)+'%)'};}},
   // 백내장의 '밝은 곳이 번지는 효과'를 더 하얗고 강하게 + 눌러서 옮기는 눈부신 빛
   {id:'glare',name:'광각장애(눈부심)',group:'general',apply:function(t){return{filter:'brightness('+(104+8*t)+'%) contrast('+(100-18*t)+'%) saturate('+(100-10*t)+'%)',glare:t,bloomWhite:0.45+0.55*t};}}
@@ -442,7 +456,7 @@ function visFilterTarget(){
   return null;
 }
 function visHintText(d){
-  if(d==='presbyopia') return presbyopiaNear?'📖 가까운 글씨는 초점이 안 맞아 읽기 힘들어요':'🏞 먼 곳은 또렷하게 잘 보여요';
+  if(d==='presbyopia') return loupeActive()?'🔍 누른 채 움직이면 동그라미 안만 또렷하게 보여요':presbyopiaNear?'📖 가까운 글씨는 상이 겹쳐 읽기 힘들어요':'🏞 먼 곳은 또렷하게 잘 보여요';
   if(d==='amd') return '👆 화면 터치 · 암점 위치 이동 · 주변 글자·선이 휘어 보여요';
   if(d==='glaucoma'||d==='vf') return '👆 화면 터치 · 또렷하게 보이는 위치 이동';
   if(d==='glare') return '👆 화면 터치 · 눈부신 위치 이동';
@@ -639,9 +653,96 @@ function updateVisionOverlay(){
   // 뿐 아니라 "나갈 때"도 다시 그려야, 이미 픽셀에 구워진 효과가 남아있는 문제가 생기지 않는다.
   if(CANVAS_FX.indexOf(cond.id)>=0 || CANVAS_FX.indexOf(lastVisD)>=0) requestCanvasRedraw();
   lastVisD=cond.id;
+  if(loupeActive() && loupeLayer && loupeLayer.parentNode) positionLoupe(); else refreshLoupe();
 }
 
-var CANVAS_FX=['diplopia','colorblind','refractive','glare','amd','presbyopia'];
+/* 노안 돋보기 — 시각 체험과 같이 누른 자리의 원 안만 또렷하고 크게 보여준다.
+   원본 화면은 그대로 겹친 상(노안 효과)으로 두고, 그 위에 효과 없는 사본을 원 모양으로
+   잘라 1.5배로 얹는다. 캔버스(물건 찾기 사진·노선도)는 효과를 굽기 전 깨끗한 사본
+   (canvas._clean)을, 키오스크처럼 HTML로 된 화면은 복제본을 쓴다. */
+var loupeLayer=null, loupeInner=null, loupeRing=null, loupeObserver=null, loupeObserved=null, loupeRefreshPending=false;
+function loupeActive(){ return G.d==='presbyopia' && presbyopiaNear && presbyLoupeOn; }
+function isFocusDraggable(){ return DRAGGABLE_FOCUS.indexOf(G.d)>=0 || loupeActive(); }
+function togglePresbyLoupe(){
+  presbyLoupeOn=!presbyLoupeOn;
+  if(presbyLoupeOn) presbyopiaNear=true; // 돋보기는 가까운 글씨를 볼 때 쓰는 것
+  syncStageButtons(); updateVisionOverlay();
+}
+function loupeSource(){
+  var el=null;
+  if(G.game==='items') el=iCvs;
+  else if(G.game==='subway') el=subMapCvs;
+  else if(G.game==='kiosk') el=document.getElementById('kiosk-content');
+  return (el && document.body.contains(el)) ? el : null;
+}
+function removeLoupe(){
+  if(loupeObserver){ loupeObserver.disconnect(); loupeObserver=null; }
+  if(loupeObserved){ loupeObserved.removeEventListener('scroll',syncLoupeScroll); loupeObserved=null; }
+  if(loupeLayer && loupeLayer.parentNode) loupeLayer.parentNode.removeChild(loupeLayer);
+  loupeLayer=null; loupeInner=null; loupeRing=null;
+}
+function refreshLoupeSoon(){
+  if(loupeRefreshPending) return;
+  loupeRefreshPending=true;
+  requestAnimationFrame(function(){ loupeRefreshPending=false; refreshLoupe(); });
+}
+function syncLoupeScroll(){
+  var src=loupeSource(), cl=loupeInner&&loupeInner.firstChild;
+  if(src && cl && cl.tagName!=='CANVAS') cl.scrollTop=src.scrollTop;
+}
+function refreshLoupe(){
+  var src=loupeSource();
+  if(!loupeActive() || !src){ removeLoupe(); return; }
+  var host=src.parentNode;
+  if(!loupeLayer || loupeLayer.parentNode!==host){
+    removeLoupe();
+    loupeLayer=document.createElement('div');
+    loupeLayer.style.cssText='position:absolute;inset:0;z-index:79;pointer-events:none;';
+    loupeInner=document.createElement('div'); loupeInner.style.cssText='position:absolute;inset:0;';
+    loupeRing=document.createElement('div');
+    loupeRing.style.cssText='position:absolute;border-radius:50%;border:4px solid rgba(255,255,255,.95);box-shadow:inset 0 0 10px rgba(0,0,0,.35);';
+    loupeLayer.appendChild(loupeInner); loupeLayer.appendChild(loupeRing);
+    host.appendChild(loupeLayer);
+  }
+  var hr=host.getBoundingClientRect(), sr=src.getBoundingClientRect();
+  var box='position:absolute;left:'+(sr.left-hr.left)+'px;top:'+(sr.top-hr.top)+'px;width:'+sr.width+'px;height:'+sr.height+'px;';
+  loupeInner.innerHTML='';
+  if(src.tagName==='CANVAS'){
+    var c=document.createElement('canvas'); c.width=src.width; c.height=src.height; c.style.cssText=box;
+    c.getContext('2d').drawImage(src._clean||src,0,0);
+    loupeInner.appendChild(c);
+  } else {
+    var cl=src.cloneNode(true);
+    cl.removeAttribute('id'); [].slice.call(cl.querySelectorAll('[id]')).forEach(function(x){ x.removeAttribute('id'); });
+    cl.style.cssText=box+'filter:none;overflow:hidden;background:'+getComputedStyle(host).backgroundColor+';';
+    loupeInner.appendChild(cl);
+    cl.scrollTop=src.scrollTop;
+    if(loupeObserved!==src){
+      if(loupeObserver) loupeObserver.disconnect();
+      if(loupeObserved) loupeObserved.removeEventListener('scroll',syncLoupeScroll);
+      // 키오스크 화면이 바뀌면(다음 단계로 넘어가는 등) 사본도 다시 만든다
+      loupeObserver=new MutationObserver(refreshLoupeSoon);
+      loupeObserver.observe(src,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class','disabled']});
+      src.addEventListener('scroll',syncLoupeScroll,{passive:true});
+      loupeObserved=src;
+    }
+  }
+  positionLoupe();
+}
+function positionLoupe(){
+  if(!loupeLayer || !loupeLayer.parentNode) return;
+  var ga=document.getElementById('garea').getBoundingClientRect(), hr=loupeLayer.parentNode.getBoundingClientRect();
+  var px=ga.left+visFocus.x*ga.width-hr.left, py=ga.top+visFocus.y*ga.height-hr.top;
+  var R=Math.min(hr.width,hr.height)*0.22;
+  loupeLayer.style.clipPath='circle('+R+'px at '+px+'px '+py+'px)';
+  loupeLayer.style.webkitClipPath=loupeLayer.style.clipPath;
+  loupeInner.style.transformOrigin=px+'px '+py+'px';
+  loupeInner.style.transform='scale(1.5)';
+  loupeRing.style.left=(px-R)+'px'; loupeRing.style.top=(py-R)+'px';
+  loupeRing.style.width=(2*R)+'px'; loupeRing.style.height=(2*R)+'px';
+}
+
+var CANVAS_FX=['diplopia','colorblind','glare','amd','presbyopia'];
 var canvasRedrawPending=false;
 // 황반변성 암점을 끌 때처럼 연달아 불려도 한 프레임에 한 번만 다시 그린다
 function requestCanvasRedraw(){
@@ -659,10 +760,7 @@ function domSvgFx(res){
     var m=document.getElementById('cbMatrix'); if(m) m.setAttribute('values',VisionFx.protanopiaSvgValues(res.colorblind));
     return 'url(#cbFilter)';
   }
-  if(res.astig){
-    var b=document.getElementById('astigBlur'); if(b) b.setAttribute('stdDeviation',(1.5+3.5*res.astig)+' 0.3');
-    return 'url(#astigFilter)';
-  }
+  if(res.defocus) return 'url(#presbyFilter)';
   if(res.warp){
     var dsp=document.getElementById('amdDisp'); if(dsp) dsp.setAttribute('scale',6+10*res.warp);
     return 'url(#amdWarpFilter)';
@@ -687,6 +785,8 @@ function applySubwayDomFx(){
 
 function setPresbyNear(near){
   presbyopiaNear=near;
+  if(!near) presbyLoupeOn=false;
+  document.getElementById('pbLoupe').classList.toggle('on',presbyLoupeOn);
   document.getElementById('pbNear').classList.toggle('on',near);
   document.getElementById('pbFar').classList.toggle('on',!near);
   updateVisionOverlay();
@@ -698,6 +798,7 @@ function syncStageButtons(){
   document.getElementById('presbyBtns').style.display=isPresby?'':'none';
   document.getElementById('pbNear').classList.toggle('on',presbyopiaNear);
   document.getElementById('pbFar').classList.toggle('on',!presbyopiaNear);
+  document.getElementById('pbLoupe').classList.toggle('on',presbyLoupeOn);
 }
 
 // 물건찾기/지하철처럼 캔버스가 낀 화면은 일부 브라우저에서 부모에 건 SVG 필터가 캔버스
@@ -705,6 +806,13 @@ function syncStageButtons(){
 function drawCanvasFx(ctx,canvas){
   var cond=VISION_MAP[G.d]; if(!cond||cond.id==='normal') return;
   var res=cond.apply(STAGE_T[G.s-1])||{};
+  if(cond.id==='presbyopia'){
+    // 돋보기 원 안에 보여줄, 효과를 굽기 전의 깨끗한 사본
+    var clean=canvas._clean||document.createElement('canvas');
+    clean.width=canvas.width; clean.height=canvas.height;
+    clean.getContext('2d').drawImage(canvas,0,0);
+    canvas._clean=clean;
+  }
   var rect=canvas.getBoundingClientRect();
   var scale=rect.width?canvas.width/rect.width:1;
   try{
@@ -712,8 +820,7 @@ function drawCanvasFx(ctx,canvas){
       var img=ctx.getImageData(0,0,canvas.width,canvas.height);
       ctx.putImageData(VisionFx.applyColorMatrix(img,VisionFx.protanopiaMatrix(res.colorblind)),0,0);
     }
-    if(res.astig) VisionFx.smearCanvas(ctx,(2+6*res.astig)*scale,0.8);
-    if(res.defocus) VisionFx.smearCanvas(ctx,2*scale,0.5); // 노안: 초점이 어긋나 살짝 겹친 상
+    if(res.defocus) VisionFx.ghostCanvas(ctx,[[4*scale,3*scale,0.5],[-4*scale,-2*scale,0.4]]); // 노안: 여러 겹으로 어긋난 상
     if(res.bloomWhite) VisionFx.bloomCanvas(ctx,res.bloomWhite);
     if(res.warp){
       var W=canvas.width, H=canvas.height, r=W*(0.14+0.14*res.warp)*1.6;
@@ -721,6 +828,7 @@ function drawCanvasFx(ctx,canvas){
     }
   }catch(err){ /* 이미지가 아직 로딩 중이거나 픽셀을 읽을 수 없으면 효과만 건너뛴다 */ }
   drawCanvasGhost(ctx,canvas);
+  if(loupeActive()) refreshLoupeSoon();
 }
 
 // 복시장애(겹쳐보임)를 캔버스에 직접 그림
@@ -754,22 +862,22 @@ function drawCanvasGhost(ctx,canvas){
       hemiTapped=true; updateVisionOverlay();
       return;
     }
-    if(DRAGGABLE_FOCUS.indexOf(G.d)<0) return;
+    if(!isFocusDraggable()) return;
     dragging=true; dragMoved=false; downX=e.clientX; downY=e.clientY;
     visFocus=toFrac(e.clientX,e.clientY); updateVisionOverlay();
   });
   garea.addEventListener('pointermove',function(e){
-    if(DRAGGABLE_FOCUS.indexOf(G.d)<0||!dragging) return;
+    if(!isFocusDraggable()||!dragging) return;
     if(Math.hypot(e.clientX-downX,e.clientY-downY)>8) dragMoved=true;
     if(dragMoved){ visFocus=toFrac(e.clientX,e.clientY); updateVisionOverlay(); }
   });
   ['pointerup','pointercancel','pointerleave'].forEach(function(ev){garea.addEventListener(ev,function(){dragging=false;});});
   // 실제로 드래그(중심점 이동)했거나 반맹 화면을 탭한 경우에만 뒤이어 발생하는 클릭/터치를 막아, 물건 찾기 등의 탭 동작과 충돌하지 않게 함
   garea.addEventListener('click',function(e){
-    if((dragMoved||hemiTapped) && (DRAGGABLE_FOCUS.indexOf(G.d)>=0||G.d==='hemianopia')){ e.stopPropagation(); e.preventDefault(); dragMoved=false; hemiTapped=false; }
+    if((dragMoved||hemiTapped) && (isFocusDraggable()||G.d==='hemianopia')){ e.stopPropagation(); e.preventDefault(); dragMoved=false; hemiTapped=false; }
   },true);
   garea.addEventListener('touchend',function(e){
-    if((dragMoved||hemiTapped) && (DRAGGABLE_FOCUS.indexOf(G.d)>=0||G.d==='hemianopia')){ e.stopPropagation(); e.preventDefault(); dragMoved=false; hemiTapped=false; }
+    if((dragMoved||hemiTapped) && (isFocusDraggable()||G.d==='hemianopia')){ e.stopPropagation(); e.preventDefault(); dragMoved=false; hemiTapped=false; }
   },true);
 
   // 두 손가락으로 만지던 중이었다면, 손가락을 뗄 때 발생하는 탭이 물건 찾기 등의 선택으로 이어지지 않게 막음
@@ -788,7 +896,7 @@ function showScr(id){document.querySelectorAll('.screen').forEach(function(s){s.
 function startGame(game){
   G.game=game;G.d='normal';G.s=1;curGroup='aging';
   document.querySelectorAll('#gtabs .gtab').forEach(function(t){t.classList.toggle('on',t.dataset.g==='aging');});
-  renderChips(); presbyopiaNear=true; syncStageButtons();
+  renderChips(); presbyopiaNear=true; presbyLoupeOn=false; syncStageButtons();
   [1,2,3].forEach(function(i){document.getElementById('sb'+i).classList.toggle('on',i===1);});
   document.getElementById('gtitle').textContent={path:'병원 길찾기',items:'물건 찾기',write:'안내문 따라쓰기',kiosk:'키오스크 주문',subway:'지하철 노선도 찾기'}[game];
   tLeft=timeForGame(1);updTimer();stopFlash();showScr('game-screen');buildGame();startTimer();
@@ -796,7 +904,7 @@ function startGame(game){
 function exitGame(){stopTimer();stopFlash();stopFocusLagCycle();showScr('home');}
 function setD(d){
   G.d=d;renderChips();
-  visFocus={x:0.5,y:0.5};presbyopiaNear=true;hemiSide='right';syncStageButtons();
+  visFocus={x:0.5,y:0.5};presbyopiaNear=true;presbyLoupeOn=false;hemiSide='right';syncStageButtons();
   stopTimer();stopFlash();tLeft=timeForGame(G.s);updTimer();updateVisionOverlay();startTimer();
 }
 function setS(s){
@@ -991,7 +1099,7 @@ function buildKiosk(area){
   pickKioskMission();
   var outer=document.createElement('div'); outer.className='kiosk-outer';
   var mission=document.createElement('div'); mission.className='kiosk-mission-bar';
-  mission.innerHTML='🎯 주문할 메뉴: <b>'+kioskMissionText()+'</b>';
+  mission.innerHTML='<div class="kiosk-mission-card"><div class="km-lbl">🎯 이번에 주문할 메뉴</div><div class="km-txt">'+kioskMissionText()+'</div></div>';
   outer.appendChild(mission);
   kWrap=document.createElement('div');kWrap.className='kiosk-wrap';
   var content=document.createElement('div');content.className='kiosk-content';content.id='kiosk-content';
