@@ -66,9 +66,13 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
 .hintbar{background:rgba(22,163,74,.14);border:1px solid rgba(22,163,74,.45);color:#4ade80;font-size:11.5px;font-weight:700;text-align:center;padding:6px 8px;border-radius:8px;margin-top:5px;}
 .garea{flex:1;position:relative;overflow:hidden;display:flex;align-items:stretch;}
 #visOverlay{position:absolute;inset:0;z-index:80;pointer-events:none;}
-#loupeFab{position:absolute;right:14px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:120;display:none;align-items:center;gap:6px;
-  background:rgba(15,23,42,.88);color:#fff;border:2px solid rgba(255,255,255,.4);border-radius:24px;padding:11px 16px;
-  font-family:inherit;font-size:14px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.4);cursor:pointer;}
+/* 노안 돋보기 버튼 — 게임 화면 위에 겹쳐 띄우면 아래 버튼(지하철 '확인' 등)을 가려서,
+   노안을 고르면 게임 화면 아래에 버튼 전용 줄(.fab-space)을 비워 두고 그 안에 둔다 */
+.garea.fab-space{margin-bottom:calc(62px + env(safe-area-inset-bottom));}
+#loupeFab{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(8px + env(safe-area-inset-bottom));z-index:120;display:none;
+  align-items:center;justify-content:center;gap:6px;width:calc(100% - 28px);max-width:380px;height:46px;
+  background:#1e293b;color:#fff;border:2px solid #fbbf24;border-radius:24px;
+  font-family:inherit;font-size:15px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.4);cursor:pointer;}
 #loupeFab.on{background:#f59e0b;border-color:#fcd34d;color:#1c1300;}
 .vov{position:absolute;inset:0;opacity:0;transition:opacity .2s;}
 #voHaze{background:rgba(230,222,200,0.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:opacity .2s, background .2s;}
@@ -328,7 +332,7 @@ var curGroup='aging';
 var presbyopiaNear=true; // 노안: true=가까운 글씨 보기(초점 어긋남), false=먼 거리 보기(선명)
 var visFocus={x:0.5,y:0.5};
 var hemiSide='right';
-var DRAGGABLE_FOCUS=['amd','glaucoma','vf','glare','rp'];
+var DRAGGABLE_FOCUS=['amd','glaucoma','vf','tv','glare','rp'];
 var presbyLoupeOn=false; // 노안 돋보기(누른 자리 원 안만 또렷하고 크게)
 
 /* ── VISION CONDITIONS (vision.html에서 이식, 게임용으로 일부 종류/강도 조정) ── */
@@ -338,7 +342,7 @@ var VISION_AGING=[
     // 게임 진행 자체가 불가능하다는 피드백으로 곡선을 완만하게 낮춤 — 말기에도
     // 형태·색은 어느 정도 분간되도록 함. haze는 필터와 별개로 더 낮게 눌러줌.
     // 시각 체험과 같이 수정체가 누렇게 변한 색(sepia·채도)과 노란 안개를 더한다
-    apply:function(t){var e=Math.pow(t,1.4);return{filter:'blur('+(0.3+4*e)+'px) contrast('+(100-30*e)+'%) sepia('+(35+55*t)+'%) saturate('+(115+45*t)+'%) hue-rotate('+(-6*t)+'deg) brightness('+(102+6*t)+'%)',haze:e*0.4,hazeColor:'rgba(240,210,120,0.55)',hazeBlur:2+4*e};}},
+    apply:function(t){var e=Math.pow(t,1.4);return{filter:'blur('+(0.3+4*e)+'px) contrast('+(100-30*e)+'%) sepia('+(35+55*t)+'%) saturate('+(115+45*t)+'%) hue-rotate('+(-6*t)+'deg) brightness('+(102+6*t)+'%)',haze:e*0.4,hazeColor:'rgba(240,210,120,0.55)',hazeBlur:2+4*e,bloomYellow:0.35+0.65*t};}},
   {id:'glaucoma',name:'녹내장',group:'aging',
     apply:function(t){return{filter:'contrast('+(100+4*t)+'%)',glaucomaLoss:t};}},
   {id:'amd',name:'황반변성',group:'aging',
@@ -361,7 +365,9 @@ var VISION_AGING=[
     apply:function(t){return{filter:'contrast('+(100+4*t)+'%)',floaters:Math.min(1.1,t*1.5)};}}
 ];
 var VISION_GENERAL=[
+  {id:'va',name:'시력장애',group:'general',apply:function(t){return{filter:'blur('+(2+8*t)+'px) contrast('+(100-12*t)+'%)'};}},
   {id:'vf',name:'시야장애',group:'general',apply:function(t){return{vignette:0.10+0.62*t,vignetteSoft:true};}},
+  {id:'tv',name:'터널시야',group:'general',apply:function(t){return{vignette:0.68+0.30*t,vignetteSoft:true};}},
   {id:'diplopia',name:'복시장애',group:'general',apply:function(t){return{filter:'contrast('+(100-4*t)+'%)',ghost:t};}},
   // 시각 체험과 같은 적록색맹 색 변환 — 색을 바래게만 하던 예전 방식과 달리 빨강·초록 계열이 실제로 비슷해 보인다
   {id:'colorblind',name:'색각장애(적록색맹)',group:'general',apply:function(t){return{colorblind:t};}},
@@ -465,7 +471,7 @@ function visHintText(d){
   if(d==='amd') return '👆 화면 터치 · 암점 위치 이동 · 주변 글자·선이 휘어 보여요';
   if(d==='glaucoma'||d==='vf') return '👆 화면 터치 · 또렷하게 보이는 위치 이동';
   if(d==='glare') return '👆 화면 터치 · 눈부신 위치 이동';
-  if(d==='hemianopia') return '👆 화면 터치 · 탭한 쪽이 보이는 쪽으로 전환';
+  if(d==='hemianopia') return '👆 까맣게 가려진 쪽을 누르면 왼쪽↔오른쪽이 바뀌어요';
   if(d==='accommodative') return '🔄 자동 초점 흐림↔선명 반복';
   if(d==='normal') return '질환을 선택해 체험해보세요';
   return '✋ 화면을 눌러 체험해보세요';
@@ -544,12 +550,6 @@ function updateVisionOverlay(){
   var baseFilter=res.filter||'none';
   // 복시장애(겹쳐보임)는 캔버스가 낀 화면(물건찾기/지하철)에서 일부 브라우저가 SVG 필터를
   // 캔버스 자손까지 제대로 적용하지 못해, 그 경우엔 캔버스에 직접 유령상을 그리는 방식으로 대신 처리한다.
-  if(res.ghost && G.game==='kiosk'){
-    var goff=document.getElementById('ghostOffset'), galpha=document.getElementById('ghostAlpha');
-    if(goff){ goff.setAttribute('dx',2+res.ghost*8); goff.setAttribute('dy',1+res.ghost*3); }
-    if(galpha) galpha.setAttribute('slope',0.2+res.ghost*0.6);
-    baseFilter=(baseFilter==='none'?'':baseFilter+' ')+'url(#ghostFilter)';
-  }
   // 적록색맹·난시·변시증·빛번짐은 SVG 필터로 — 키오스크는 화면 전체에, 지하철은 노선도
   // 캔버스를 뺀 안내 부분에만 건다(노선도 캔버스는 drawCanvasFx가 픽셀로 직접 처리).
   var svgFx=domSvgFx(res);
@@ -747,7 +747,7 @@ function positionLoupe(){
   loupeRing.style.width=(2*R)+'px'; loupeRing.style.height=(2*R)+'px';
 }
 
-var CANVAS_FX=['diplopia','colorblind','glare','amd','presbyopia'];
+var CANVAS_FX=['diplopia','colorblind','glare','amd','presbyopia','cataract'];
 var canvasRedrawPending=false;
 // 황반변성 암점을 끌 때처럼 연달아 불려도 한 프레임에 한 번만 다시 그린다
 function requestCanvasRedraw(){
@@ -766,13 +766,22 @@ function domSvgFx(res){
     return 'url(#cbFilter)';
   }
   if(res.defocus) return 'url(#presbyFilter)';
+  if(res.ghost){
+    var goff=document.getElementById('ghostOffset'), galpha=document.getElementById('ghostAlpha');
+    if(goff){ goff.setAttribute('dx',2+res.ghost*8); goff.setAttribute('dy',1+res.ghost*3); }
+    if(galpha) galpha.setAttribute('slope',0.2+res.ghost*0.6);
+    return 'url(#ghostFilter)';
+  }
   if(res.warp){
     var dsp=document.getElementById('amdDisp'); if(dsp) dsp.setAttribute('scale',6+10*res.warp);
     return 'url(#amdWarpFilter)';
   }
-  if(res.bloomWhite){
-    var bl=document.getElementById('bloomBlur'); if(bl) bl.setAttribute('stdDeviation',10+12*res.bloomWhite);
-    ['R','G','B'].forEach(function(c){ var f=document.getElementById('bloomGain'+c); if(f) f.setAttribute('slope',0.35+0.55*res.bloomWhite); });
+  if(res.bloomWhite || res.bloomYellow){
+    // 광각장애는 하얀 빛, 백내장은 시각 체험처럼 노란 빛이 밝은 곳에서 번진다
+    var b=res.bloomWhite||res.bloomYellow, tint=res.bloomWhite?[1,1,1]:[1,0.85,0.45];
+    var gain=res.bloomWhite?0.35+0.55*b:0.2+0.3*b;
+    var bl=document.getElementById('bloomBlur'); if(bl) bl.setAttribute('stdDeviation',10+12*b);
+    ['R','G','B'].forEach(function(c,i){ var f=document.getElementById('bloomGain'+c); if(f) f.setAttribute('slope',gain*tint[i]); });
     return 'url(#bloomFilter)';
   }
   return '';
@@ -805,6 +814,7 @@ function syncStageButtons(){
   document.getElementById('pbFar').classList.toggle('on',!presbyopiaNear);
   var fab=document.getElementById('loupeFab');
   fab.style.display=isPresby?'flex':'none';
+  document.getElementById('garea').classList.toggle('fab-space',isPresby);
   fab.classList.toggle('on',presbyLoupeOn);
   fab.textContent=presbyLoupeOn?'🔍 돋보기 끄기':'🔍 돋보기로 보기';
 }
@@ -830,6 +840,7 @@ function drawCanvasFx(ctx,canvas){
     }
     if(res.defocus) VisionFx.ghostCanvas(ctx,[[2.5*scale,2*scale,0.5],[-2.5*scale,-1.5*scale,0.4]]); // 노안: 여러 겹으로 어긋난 상(복시보다 좁은 간격)
     if(res.bloomWhite) VisionFx.bloomCanvas(ctx,res.bloomWhite);
+    if(res.bloomYellow) VisionFx.bloomCanvas(ctx,res.bloomYellow*0.6,[1,0.85,0.45]);
     if(res.warp){
       var W=canvas.width, H=canvas.height, r=W*(0.14+0.14*res.warp)*1.6;
       VisionFx.warpPatch(ctx,ctx,visFocus.x*W,visFocus.y*H,r,r*(0.05+0.07*res.warp),0);
@@ -869,9 +880,11 @@ function drawCanvasGhost(ctx,canvas){
   garea.addEventListener('pointerdown',function(e){
     if(isUiTarget(e)) return;
     if(G.d==='hemianopia'){
+      // 까맣게 가려진 쪽을 누르면 좌우가 바뀐다. 보이는 쪽을 누른 것은 게임 조작(물건 고르기·
+      // 키오스크 버튼 등)으로 그대로 넘겨서, 반맹 상태에서도 게임을 할 수 있게 한다.
       var f=toFrac(e.clientX,e.clientY);
-      hemiSide=(f.x<0.5)?'right':'left';
-      hemiTapped=true; updateVisionOverlay();
+      var onHidden=(hemiSide==='right')?(f.x>=0.5):(f.x<0.5);
+      if(onHidden){ hemiSide=(hemiSide==='right')?'left':'right'; hemiTapped=true; updateVisionOverlay(); }
       return;
     }
     if(!isFocusDraggable()) return;
@@ -1324,6 +1337,9 @@ function buildSubway(area){
   var content = document.createElement('div'); content.className='subway-content'; content.id='subway-content';
   subWrap.appendChild(content);
   area.appendChild(subWrap);
+  // 시각 효과 겹침층은 노선도만이 아니라 안내·확인 화면까지 지하철 화면 전체에 깐다
+  // (예전엔 노선도 화면에만 있어서 안내 화면에서는 반맹·암점·얼룩 등이 보이지 않았다)
+  buildVisionOverlay(subWrap);
   requestAnimationFrame(function(){ renderSubwayScreen(); });
 }
 
@@ -1389,7 +1405,6 @@ function renderSubwayScreen(){
 
       updSubwayStatus();
       drawSubwayMap();
-      buildVisionOverlay(mapArea);
 
       var subTapStartX=0, subTapStartY=0, subTapMoved=false;
       subMapCvs.addEventListener('touchstart', function(e){
