@@ -111,7 +111,9 @@
 
   // 광각장애 — 밝은 곳만 골라 크게 번진 빛을 screen으로 더한다. 작게 줄였다가
   // 다시 키우면(부드럽게 보간) 큰 블러와 같은 효과가 나서 iOS에서도 동작한다.
-  function bloomCanvas(ctx, strength){
+  // tint: [r,g,b] 배율 — 생략하면 하얀 빛(광각장애), 백내장은 노란 빛([1,.85,.45])
+  function bloomCanvas(ctx, strength, tint){
+    tint = tint || [1,1,0.97];
     var c = ctx.canvas, W = c.width, H = c.height;
     var sw = Math.max(8, Math.round(W/24)), sh = Math.max(8, Math.round(H/24));
     var small = document.createElement('canvas'); small.width = sw; small.height = sh;
@@ -122,7 +124,7 @@
       var lum = (0.299*d[i]+0.587*d[i+1]+0.114*d[i+2])/255;
       var v = Math.max(0, (lum-thr)/(1-thr));
       v = Math.min(255, 255*Math.pow(v, 0.7));
-      d[i]=v; d[i+1]=v; d[i+2]=Math.min(255, v*0.97); d[i+3]=255;
+      d[i]=v*tint[0]; d[i+1]=v*tint[1]; d[i+2]=v*tint[2]; d[i+3]=255;
     }
     sc.putImageData(img, 0, 0);
     ctx.save();
