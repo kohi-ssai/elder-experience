@@ -274,9 +274,10 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
 
 <script src="assets/js/vision-fx.js"></script>
 <div id="home" class="screen active">
+  <a id="homeBack" href="aging.html" style="align-self:flex-start;margin:14px 0 0 14px;padding:6px 12px;border-radius:999px;border:1px solid #334155;background:#1e293b;color:#cbd5e1;font-size:12px;font-weight:700;text-decoration:none;">← 처음으로</a>
   <div class="home-logo">👁</div>
-  <div class="home-title">일상생활<br>체험</div>
-  <div class="home-sub">보건복지시설 사회복무요원 직무교육<br>노화로 인한 시각 변화를 일상 속 상황으로 체험해봅시다</div>
+  <div class="home-title" id="homeTitle">일상생활<br>체험</div>
+  <div class="home-sub" id="homeSub">보건복지시설 사회복무요원 직무교육<br>노화로 인한 시각 변화를 일상 속 상황으로 체험해봅시다</div>
   <div class="game-grid">
     <div class="game-card" onclick="startGame('items')" style="grid-column:span 2;">
       <div class="icon">🔍</div><div class="name">물건 찾기</div><div class="desc">방 안 숨은 물건 탐색</div>
@@ -298,15 +299,15 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
     <div class="twrap"><span>⏱</span><span class="tnum" id="tnum">30</span></div>
   </div>
   <div class="cbar">
-    <div class="gtabs" id="gtabs">
+    <div class="gtabs" id="gtabs" style="display:none">
       <div class="gtab on" data-g="aging" onclick="setGroup('aging')">노화성 안질환</div>
-      <div class="gtab"    data-g="general" onclick="setGroup('general')">일반 시각장애</div>
+      <div class="gtab"    data-g="general" onclick="setGroup('general')">시각장애</div>
     </div>
     <div class="crow">
       <div class="chiprow" id="chiprow"></div>
     </div>
     <div class="crow">
-      <span class="clabel">단계</span>
+      <span class="clabel" id="stageLabel">단계</span>
       <div class="cbtns" id="stageBtns">
         <div class="cb on" id="sb1" onclick="setS(1)">● 초기</div>
         <div class="cb"    id="sb2" onclick="setS(2)">●● 중기</div>
@@ -328,7 +329,9 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
 var G={game:'items',d:'normal',s:1};
 var lastVisD='normal'; // 복시장애→다른 질환 전환 시에도 캔버스를 다시 그려 유령상 잔상을 지우기 위한 이전 질환 추적
 var timerInt=null,tLeft=20;
-var curGroup='aging';
+// 일상생활 체험은 첫 화면에서 '노화'와 '장애' 두 개로 나눠 들어온다(games.html?g=aging / ?g=general).
+var PAGE_GROUP=new URLSearchParams(location.search).get('g')==='general'?'general':'aging';
+var curGroup=PAGE_GROUP;
 var presbyopiaNear=true; // 노안: true=가까운 글씨 보기(초점 어긋남), false=먼 거리 보기(선명)
 var visFocus={x:0.5,y:0.5};
 var hemiSide='right';
@@ -819,7 +822,10 @@ function setPresbyNear(near){
 // 노안만 초기·중기·말기 대신 '가까운 글씨 보기 / 먼 거리 보기' 두 버튼을 보여준다
 function syncStageButtons(){
   var isPresby=G.d==='presbyopia';
-  document.getElementById('stageBtns').style.display=isPresby?'none':'';
+  // 정상에는 초기·중기·말기가 없으므로 단계 줄 자체를 숨긴다. 노안은 가까운/먼 거리 버튼으로 대신한다.
+  var isNormal=G.d==='normal';
+  document.getElementById('stageBtns').style.display=(isPresby||isNormal)?'none':'';
+  var sl=document.getElementById('stageLabel'); if(sl) sl.style.display=isNormal?'none':'';
   document.getElementById('presbyBtns').style.display=isPresby?'':'none';
   document.getElementById('pbNear').classList.toggle('on',presbyopiaNear);
   document.getElementById('pbFar').classList.toggle('on',!presbyopiaNear);
@@ -935,8 +941,8 @@ function drawCanvasGhost(ctx,canvas){
 function timeForGame(s){ if(G.game==='items') return 30; if(G.game==='kiosk') return 40; if(G.game==='subway') return 35; return [20,18,15][s-1]; }
 function showScr(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
 function startGame(game){
-  G.game=game;G.d='normal';G.s=1;curGroup='aging';
-  document.querySelectorAll('#gtabs .gtab').forEach(function(t){t.classList.toggle('on',t.dataset.g==='aging');});
+  G.game=game;G.d='normal';G.s=1;curGroup=PAGE_GROUP;
+  document.querySelectorAll('#gtabs .gtab').forEach(function(t){t.classList.toggle('on',t.dataset.g===PAGE_GROUP);});
   renderChips(); presbyopiaNear=true; presbyLoupeOn=false; syncStageButtons();
   [1,2,3].forEach(function(i){document.getElementById('sb'+i).classList.toggle('on',i===1);});
   document.getElementById('gtitle').textContent={path:'병원 길찾기',items:'물건 찾기',write:'안내문 따라쓰기',kiosk:'키오스크 주문',subway:'지하철 노선도 찾기'}[game];
@@ -1543,6 +1549,16 @@ function drawSubwayMap(){
 
   drawCanvasFx(ctx,subMapCvs);
 }
+
+// 첫 화면 이름·설명을 노화/장애에 맞춘다
+(function(){
+  var aging=PAGE_GROUP==='aging';
+  document.title=aging?'일상생활 체험(노화)':'일상생활 체험(장애)';
+  document.getElementById('homeTitle').innerHTML='일상생활 체험<br>'+(aging?'(노화)':'(장애)');
+  document.getElementById('homeSub').innerHTML='보건복지시설 사회복무요원 직무교육<br>'+(aging?'노화로 인한 시각 변화를':'시각장애로 인한 시각 변화를')+' 일상 속 상황으로 체험해봅시다';
+  document.getElementById('homeBack').href=aging?'aging.html':'disability.html';
+  renderChips();
+})();
 
 </script>
 </body>
