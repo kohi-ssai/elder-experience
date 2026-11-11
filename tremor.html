@@ -924,6 +924,17 @@ var WSTEPS=[
 var W={step:0,level:0,maxLevel:0,drawing:false,drawn:false,strokes:0,devs:[],results:[],lastX:0,lastY:0};
 var wTimerInt=null, wTLeft=15;
 var wCvs,wCtx,W_CVS_H=220;
+// 떨림이 세질수록(정상→경증→중증) 글 쓰는 칸도 조금씩 작아진다. 너무 작아 쓰기 어렵지 않게 폭 100→92→84%, 높이 220→192→164px.
+var W_BOX_SCALE=[1,0.92,0.84], W_BOX_H=[220,192,164];
+function wResizeBox(){
+  var outer=document.getElementById('wcvs-outer'); if(!outer||!wCvs) return;
+  var lv=Math.min(W.level,W_BOX_SCALE.length-1);
+  var full=outer.parentNode.clientWidth||340;
+  var w=Math.round(full*W_BOX_SCALE[lv]), h=W_BOX_H[lv];
+  outer.style.width=w+'px'; outer.style.height=h+'px'; outer.style.marginLeft='auto'; outer.style.marginRight='auto';
+  wCvs.width=w; wCvs.height=h; wCvs.style.height=h+'px';
+  wCtx=wCvs.getContext('2d');
+}
 var wTremor=makeTremor(W_LV_AMP);
 
 function wStart(){
@@ -979,7 +990,7 @@ function wBuildDots(){
 }
 function wLoadStep(){
   var s=WSTEPS[W.step];
-  wUpdLevel();
+  wUpdLevel(); wResizeBox();
   for(var i=0;i<WSTEPS.length;i++){ var d=document.getElementById('wdot'+i); if(d) d.className='wsdot'+(i<W.step?' done':i===W.step?' cur':''); }
   document.getElementById('wsinfo').innerHTML=(s.type==='word'?'📝 <b>단어 따라쓰기</b>':'✍️ <b>문장 따라쓰기</b>')+' &nbsp;&middot;&nbsp; '+(W.step+1)+' / '+WSTEPS.length+'단계';
   document.getElementById('wstep-label').textContent=(s.type==='word'?'📝 단어 따라쓰기 — ':'✍️ 문장 따라쓰기 — ')+s.hint;
@@ -1014,9 +1025,7 @@ function wSaveResult(){
 function wInitCvs(){
   wCvs=document.getElementById('wCvs');
   var outer=document.getElementById('wcvs-outer');
-  wCvs.width=outer.clientWidth||340; wCvs.height=W_CVS_H;
-  wCvs.style.height=W_CVS_H+'px'; outer.style.height=W_CVS_H+'px';
-  wCtx=wCvs.getContext('2d'); wDrawBg();
+  wCtx=wCvs.getContext('2d'); wResizeBox(); wDrawBg();
   wFitGuideFont();
   wCvs.addEventListener('touchstart',function(e){ e.preventDefault(); var p=wGetTP(e.touches[0]); wStartDraw(p.x,p.y); },{passive:false});
   wCvs.addEventListener('touchmove',function(e){ e.preventDefault(); if(!W.drawing) return; var p=wGetTP(e.touches[0]); wMoveDraw(p.x,p.y); },{passive:false});

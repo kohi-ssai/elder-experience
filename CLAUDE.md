@@ -2,14 +2,15 @@
 
 A Korean-language elderly-empathy education web app. Static multi-page
 HTML/CSS/JS, no build system, no backend. `index.html` is the hub linking
-to five self-contained experience pages, each simulating a different aspect
-of aging for the visitor. Each hub card has an [안내] button opening a sheet
+to seven separate experiences (시각·일상생활 each split into 노화/장애, plus 청각·손떨림·기억력),
+each simulating a different aspect of aging for the visitor. `qr.html` renders one QR per
+experience (base URL derived from where it is hosted, editable in the page; `assets/js/qrcode.js`). Each hub card has an [안내] button opening a sheet
 (의미·목적·체험 방법·기대 효과) from the `GUIDE` object in `index.html` — update
 that text whenever an experience's controls or content change:
 
 - **vision.html** — 카메라로 보는 안질환. The hub links it twice as 시각 체험(노화)
-  (`vision.html?g=aging`, 노화성 안질환 8종) and 시각 체험(일반) (`?g=general`,
-  일반 시각장애 7종); each shows only its own group. Live camera feed run through per-condition visual filters
+  (`vision.html?g=aging`, 노화성 안질환 8종) and 시각 체험(장애) (`?g=general`,
+  시각장애 7종); each shows only its own group. Live camera feed run through per-condition visual filters
   (CSS `filter` for most conditions; a dedicated `<canvas>` redrawn every
   `requestAnimationFrame` for effects CSS can't express, e.g. color-blindness
   matrices and the presbyopia "loupe" partial-sharp-patch interaction).
@@ -18,8 +19,8 @@ that text whenever an experience's controls or content change:
   (hemianopia shows full-screen, no split). Effect shapes shared with games.html
   (glaucoma pattern, protanopia matrix, AMD warp, canvas ghost/bloom) live in
   `assets/js/vision-fx.js` (`window.VisionFx`).
-- **games.html** — 일상생활 체험: 물건 찾기 · 키오스크 주문 · 지하철 노선도 찾기, 3가지
-  게임, each with the same vision conditions applied on top. Canvas screens get
+- **games.html** — 일상생활 체험(노화) `?g=aging` / 일상생활 체험(장애) `?g=general`: 물건 찾기 · 키오스크 주문 · 지하철 노선도 찾기, 3가지
+  게임, each page shows only its own group's conditions; '정상' has no 초기·중기·말기 stage row. Each with the same vision conditions applied on top. Canvas screens get
   pixel effects in `drawCanvasFx()`; HTML screens get SVG filters (`domSvgFx()`).
   **Keep it in sync with vision.html**: the same conditions in both pages, and any
   change to a vision effect must be applied here too and checked in all three games
@@ -33,7 +34,7 @@ that text whenever an experience's controls or content change:
   (`assets/img/hospital_map.jpg`) with a walkability grid + BFS pathfinding
   (`ROOMS`/`BLOCK_ONLY_RECTS`, line-of-sight-verified path simplification)
   and a guide line whose visible jitter simulates hand tremor at increasing
-  severity across 3 mission sets. Per-set miss counts are shown on the
+  severity across 3 mission sets. The writing mode's canvas also shrinks a bit per tremor level (`W_BOX_SCALE`/`W_BOX_H`). Per-set miss counts are shown on the
   victory screen (not summed across sets). The writing mode shows only the
   current tremor level (no stability/deviation numbers — those measured the
   injected jitter, not the user).

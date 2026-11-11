@@ -283,7 +283,7 @@
     <div id="stageHint">&#9995; 손잡이 좌우 드래그 &middot; 1(정상)&middot;2(체험) 비교</div>
     <div id="groupTabs">
       <button class="gtab active" data-g="aging">노화성 안질환 <span class="cnt">8종</span></button>
-      <button class="gtab" data-g="general">일반 시각장애 <span class="cnt">7종</span></button>
+      <button class="gtab" data-g="general">시각장애 <span class="cnt">7종</span></button>
     </div>
     <div id="chips"></div>
     <div id="chips2" style="display:none;"></div>
@@ -752,7 +752,7 @@
     });
     container.appendChild(chip);
   }
-  // 시각 체험은 첫 화면에서 '노화'와 '일반' 두 개로 나눠 들어온다(vision.html?g=aging / ?g=general).
+  // 시각 체험은 첫 화면에서 '노화'와 '장애' 두 개로 나눠 들어온다(vision.html?g=aging / ?g=general).
   // 들어온 쪽의 질환만 보여주고, 페이지 안에서 다른 쪽으로 넘어가는 탭은 두지 않는다.
   const PAGE_GROUP = new URLSearchParams(location.search).get('g')==='general' ? 'general' : 'aging';
   if(PAGE_GROUP==='general') currentCond = GENERAL[0];
@@ -761,7 +761,7 @@
   document.getElementById('groupTabs').style.display = 'none';
   chipsEl.style.display = PAGE_GROUP==='aging' ? 'flex' : 'none';
   chips2El.style.display = PAGE_GROUP==='general' ? 'flex' : 'none';
-  document.title = PAGE_GROUP==='aging' ? '시각 체험(노화) · 노화성 안질환 카메라 체험' : '시각 체험(일반) · 일반 시각장애 카메라 체험';
+  document.title = PAGE_GROUP==='aging' ? '시각 체험(노화) · 노화성 안질환 카메라 체험' : '시각 체험(장애) · 시각장애 카메라 체험';
 
   function buildSubChips(){
     subChipsEl.innerHTML='';

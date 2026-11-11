@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>체험별 QR 코드 · 어르신 체험관</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<style>
+  body{ margin:0; font-family:'Noto Sans KR',sans-serif; background:var(--bg,#0f172a); color:var(--ink,#f1f5f9); }
+  .wrap{ max-width:960px; margin:0 auto; padding:24px 16px 40px; }
+  h1{ font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; opacity:.75; line-height:1.6; margin-bottom:14px; }
+  .base{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:18px; font-size:13px; }
+  .base input{ flex:1; min-width:220px; padding:8px 10px; border-radius:8px; border:1px solid #475569; background:#fff; color:#111; font-size:13px; }
+  .base button{ padding:8px 14px; border-radius:8px; border:0; background:#2563eb; color:#fff; font-weight:700; cursor:pointer; }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
+  .qc{ background:#fff; color:#111; border-radius:14px; padding:14px; text-align:center; break-inside:avoid; }
+  .qc .t{ font-size:15px; font-weight:800; margin-bottom:8px; }
+  .qc .q{ width:100%; aspect-ratio:1; display:flex; }
+  .qc .q svg{ width:100%; height:100%; }
+  .qc .u{ font-size:10px; color:#555; word-break:break-all; margin-top:6px; }
+  @media print{ body{ background:#fff; color:#000; } .base,.sub{ display:none; } .grid{ grid-template-columns:repeat(3,1fr); } .qc{ border:1px solid #ccc; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>체험별 QR 코드</h1>
+  <div class="sub">체험마다 QR이 따로 있습니다. 스마트폰 카메라로 비추면 해당 체험이 바로 열립니다. 인쇄(Ctrl+P)해서 체험 부스에 붙여 쓰세요.</div>
+  <div class="base">
+    <label for="baseUrl">접속 주소</label>
+    <input id="baseUrl" type="url" inputmode="url">
+    <button id="apply">QR 다시 만들기</button>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+<script src="assets/js/qrcode.js"></script>
+<script>
+(function(){
+  "use strict";
+  var ITEMS=[
+    ['시각 체험(노화)','vision.html?g=aging'],
+    ['일상생활 체험(노화)','games.html?g=aging'],
+    ['시각 체험(장애)','vision.html?g=general'],
+    ['일상생활 체험(장애)','games.html?g=general'],
+    ['청각 체험','hearing.html'],
+    ['손떨림 체험','tremor.html'],
+    ['기억력·집중력 체험','memory.html']
+  ];
+  var input=document.getElementById('baseUrl'), grid=document.getElementById('grid');
+  // 기본값: 이 페이지가 열린 주소의 폴더. 배포 주소가 다르면 입력칸에서 바꾸면 된다.
+  input.value=location.href.replace(/[?#].*$/,'').replace(/[^\/]*$/,'');
+  function norm(b){ b=b.trim(); return b && !/\/$/.test(b) ? b+'/' : b; }
+  function render(){
+    var base=norm(input.value); grid.innerHTML='';
+    ITEMS.forEach(function(it){
+      var url=base+it[1], qr=qrcode(0,'M'); qr.addData(url); qr.make();
+      var d=document.createElement('div'); d.className='qc';
+      d.innerHTML='<div class="t"></div><div class="q">'+qr.createSvgTag({cellSize:4,margin:2,scalable:true})+'</div><div class="u"></div>';
+      d.querySelector('.t').textContent=it[0]; d.querySelector('.u').textContent=url;
+      grid.appendChild(d);
+    });
+  }
+  document.getElementById('apply').addEventListener('click',render);
+  render();
+})();
+</script>
+</body>
+</html>
