@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="노화 체험">
+<meta name="theme-color" content="#14181C">
+<title>노화 체험</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/theme.css">
+<style>
+  html,body{ overflow-y:auto; overscroll-behavior-y:contain; }
+  #app{ min-height:100%; display:flex; flex-direction:column; padding-top:var(--safe-top); padding-bottom:calc(24px + var(--safe-bottom)); }
+
+  header{ padding:28px 22px 18px; }
+  .eyebrow{ font-size:12px; letter-spacing:.14em; color:var(--amber); font-weight:700; }
+  h1{ margin:8px 0 6px; font-size:26px; font-weight:900; line-height:1.3; }
+  .sub{ font-size:14px; color:var(--ink-dim); line-height:1.6; }
+
+  .grid{ padding:6px 18px 10px; display:flex; flex-direction:column; gap:14px; }
+
+  .card{
+    position:relative; display:flex; align-items:center; gap:16px;
+    background:var(--bg-panel); border:1px solid var(--line); border-radius:18px;
+    padding:18px 18px; overflow:hidden;
+  }
+  .card:active{ background:var(--bg-panel-2); }
+  .card .icon{
+    flex:0 0 auto; width:56px; height:56px; border-radius:14px;
+    display:flex; align-items:center; justify-content:center; font-size:28px;
+    background:var(--bg-panel-2); border:1px solid var(--line);
+  }
+  .card .body{ flex:1; min-width:0; }
+  .card .num{ font-size:11px; color:var(--ink-faint); font-weight:700; }
+  .card .title{ font-size:17px; font-weight:700; margin:2px 0 4px; }
+  .card .desc{ font-size:12.5px; color:var(--ink-dim); line-height:1.5; }
+  /* 카드 오른쪽 '안내' 버튼 — 카드를 누르면 바로 체험, 이 버튼을 누르면 체험 소개(의미·목적·방법·기대효과) 창 */
+  .card .info-btn{
+    flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:8px 9px; border-radius:12px; border:1px solid rgba(217,164,65,.45); background:rgba(217,164,65,.1);
+    color:var(--amber); font-size:11.5px; font-weight:700; cursor:pointer;
+  }
+  .card .info-btn:active{ background:rgba(217,164,65,.22); }
+  .card .info-btn .ib-i{
+    width:20px; height:20px; border-radius:50%; border:1.5px solid var(--amber);
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; font-family:Georgia,serif; font-style:italic;
+  }
+
+  #guide{ position:fixed; inset:0; z-index:50; display:none; }
+  #guide.open{ display:block; }
+  #guide .dim{ position:absolute; inset:0; background:rgba(0,0,0,.6); }
+  #guide .sheet{
+    position:absolute; left:0; right:0; bottom:0; max-height:86%; display:flex; flex-direction:column;
+    background:var(--bg-panel); border-top-left-radius:22px; border-top-right-radius:22px; border-top:1px solid var(--line);
+    padding-bottom:var(--safe-bottom); animation:sheetUp .22s ease-out;
+  }
+  @keyframes sheetUp{ from{ transform:translateY(40px); opacity:0; } to{ transform:none; opacity:1; } }
+  #guide .gh{ display:flex; align-items:center; gap:12px; padding:18px 18px 12px; border-bottom:1px solid var(--line); }
+  #guide .gh .gi{ font-size:28px; }
+  #guide .gh .gt{ flex:1; font-size:19px; font-weight:900; }
+  #guide .gh .gx{ width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:var(--bg-panel-2); color:var(--ink); font-size:18px; }
+  #guide .gb{ overflow-y:auto; padding:6px 20px 8px; -webkit-overflow-scrolling:touch; }
+  #guide .sec{ padding:12px 0; border-bottom:1px dashed var(--line); }
+  #guide .sec:last-child{ border-bottom:none; }
+  #guide .sec h3{ margin:0 0 6px; font-size:13.5px; color:var(--amber); font-weight:800; letter-spacing:.02em; }
+  #guide .sec p{ margin:0; font-size:14px; line-height:1.7; color:var(--ink); word-break:keep-all; }
+  #guide .sec ol{ margin:0; padding-left:20px; }
+  #guide .sec li{ font-size:14px; line-height:1.7; color:var(--ink); margin-bottom:3px; word-break:keep-all; }
+  #guide .gf{ padding:12px 18px 16px; border-top:1px solid var(--line); }
+  #guide .gstart{ display:block; text-align:center; background:var(--amber); color:#1B1300; font-weight:800; font-size:16px; padding:14px; border-radius:14px; }
+
+  .c1 .icon{ color:var(--amber); }
+  .c2 .icon{ color:var(--sage); }
+  .c3 .icon{ color:var(--brick); }
+  .c4 .icon{ color:#8FAEDB; }
+  .c5 .icon{ color:#C9A8E0; }
+
+  footer{ padding:20px 22px 0; font-size:11px; color:var(--ink-faint); text-align:center; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="eyebrow">AGING</div>
+    <h1>노화 체험</h1>
+    <div class="sub">노화로 인한 시각 변화를 체험합니다. 체험을 골라 주세요.</div>
+  </header>
+  <div class="grid">
+    <a class="card c1" href="vision.html?g=aging">
+      <div class="icon">&#128065;</div>
+      <div class="body">
+        <div class="num">01 · VISION</div>
+        <div class="title">시각 체험(노화)</div>
+        <div class="desc">카메라로 보는 노화성 안질환 8종 &middot; 초기·중기·말기 단계별 시야 변화</div>
+      </div>
+    </a>
+    <a class="card c5" href="games.html?g=aging">
+      <div class="icon">&#127918;</div>
+      <div class="body">
+        <div class="num">02 · DAILY LIFE</div>
+        <div class="title">일상생활 체험(노화)</div>
+        <div class="desc">노화성 안질환 눈으로 물건 찾기 · 키오스크 주문 · 지하철 노선도 찾기</div>
+      </div>
+    </a>
+  </div>
+  <footer>한국보건복지인재원 &middot; 어르신 공감교육 자료</footer>
+</div>
+</body>
+</html>
