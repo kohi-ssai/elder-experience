@@ -1,12 +1,13 @@
 # 어르신 체험관 (Elder Experience)
 
 A Korean-language elderly-empathy education web app. Static multi-page
-HTML/CSS/JS, no build system, no backend. `index.html` is the hub linking
-to seven separate experiences (시각·일상생활 each split into 노화/장애, plus 청각·손떨림·기억력),
-each simulating a different aspect of aging for the visitor. `qr.html` renders one QR per
-experience (base URL derived from where it is hosted, editable in the page; `assets/js/qrcode.js`). Each hub card has an [안내] button opening a sheet
-(의미·목적·체험 방법·기대 효과) from the `GUIDE` object in `index.html` — update
-that text whenever an experience's controls or content change:
+HTML/CSS/JS, no build system, no backend. There are five separate apps, each entered directly by its own QR
+(`qr.html`, base URL derived from where it is hosted, editable in the page; `assets/js/qrcode.js`):
+`aging.html` (시각·일상생활 체험(노화) chooser), `disability.html` (시각·일상생활 체험(장애) chooser),
+`hearing.html`, `tremor.html`, `memory.html`. Participants must not be able to wander into another
+app, so those pages have no link to `index.html`; `index.html` is only an instructor hub.
+Every app has an [안내] button opening a sheet (의미·목적·체험 방법·기대 효과) from the `GUIDE`
+object in `assets/js/guide.js` (shared) — update that text whenever an experience's controls or content change:
 
 - **vision.html** — 카메라로 보는 안질환. The hub links it twice as 시각 체험(노화)
   (`vision.html?g=aging`, 노화성 안질환 8종) and 시각 체험(장애) (`?g=general`,

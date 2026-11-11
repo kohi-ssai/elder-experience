@@ -250,7 +250,7 @@
       <div class="overlay" id="ovDiabetic"></div>
     </div>
 
-    <a id="homeBtn" href="index.html"><span class="arr">&#8592;</span>처음으로</a>
+    <a id="homeBtn" href="aging.html"><span class="arr">&#8592;</span>처음으로</a>
     <div class="side-tag" id="tagLeft">1 &middot; 정상 시야</div>
     <div class="side-tag" id="tagRight">2 &middot; 체험 중</div>
     <button id="loupeToggle">&#128269; 돋보기로 보기</button>
@@ -759,6 +759,7 @@
   AGING.forEach(c=>makeChip(c, chipsEl));
   GENERAL.forEach(c=>makeChip(c, chips2El));
   document.getElementById('groupTabs').style.display = 'none';
+  document.getElementById('homeBtn').href = PAGE_GROUP==='general' ? 'disability.html' : 'aging.html';
   chipsEl.style.display = PAGE_GROUP==='aging' ? 'flex' : 'none';
   chips2El.style.display = PAGE_GROUP==='general' ? 'flex' : 'none';
   document.title = PAGE_GROUP==='aging' ? '시각 체험(노화) · 노화성 안질환 카메라 체험' : '시각 체험(장애) · 시각장애 카메라 체험';

@@ -25,7 +25,7 @@
 <body>
 <div class="wrap">
   <h1>체험별 QR 코드</h1>
-  <div class="sub">체험마다 QR이 따로 있습니다. 스마트폰 카메라로 비추면 해당 체험이 바로 열립니다. 인쇄(Ctrl+P)해서 체험 부스에 붙여 쓰세요.</div>
+  <div class="sub">5가지 체험마다 QR이 따로 있습니다. 스마트폰 카메라로 비추면 해당 체험이 바로 열립니다. 인쇄(Ctrl+P)해서 체험 부스에 붙여 쓰세요.</div>
   <div class="base">
     <label for="baseUrl">접속 주소</label>
     <input id="baseUrl" type="url" inputmode="url">
@@ -38,10 +38,8 @@
 (function(){
   "use strict";
   var ITEMS=[
-    ['시각 체험(노화)','vision.html?g=aging'],
-    ['일상생활 체험(노화)','games.html?g=aging'],
-    ['시각 체험(장애)','vision.html?g=general'],
-    ['일상생활 체험(장애)','games.html?g=general'],
+    ['노화 체험','aging.html'],
+    ['장애 체험','disability.html'],
     ['청각 체험','hearing.html'],
     ['손떨림 체험','tremor.html'],
     ['기억력·집중력 체험','memory.html']

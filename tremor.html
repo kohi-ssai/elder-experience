@@ -150,8 +150,8 @@ input[type=range]::-moz-range-thumb{ width:16px;height:16px;border-radius:50%;ba
 <!-- ================= HOME ================= -->
 <div id="scr-home" class="screen active">
   <div id="topbar">
-    <a id="homeBtn" href="index.html">&#8592;</a>
     <h1>손떨림 체험</h1>
+    <span class="info-btn top" role="button" tabindex="0" data-k="tr" aria-label="사용 안내"><span class="ib-i">i</span>안내</span>
   </div>
   <div class="hero">
     <div class="hi">&#9995;</div>
@@ -1087,5 +1087,6 @@ window.addEventListener('resize',function(){
   if(document.getElementById('scr-write').classList.contains('active')) wInitCvs();
 });
 </script>
+<script src="assets/js/guide.js"></script>
 </body>
 </html>

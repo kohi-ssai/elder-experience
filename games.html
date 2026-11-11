@@ -274,6 +274,7 @@ html,body{height:100%;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-seri
 
 <script src="assets/js/vision-fx.js"></script>
 <div id="home" class="screen active">
+  <a id="homeBack" href="aging.html" style="align-self:flex-start;margin:14px 0 0 14px;padding:6px 12px;border-radius:999px;border:1px solid #334155;background:#1e293b;color:#cbd5e1;font-size:12px;font-weight:700;text-decoration:none;">← 처음으로</a>
   <div class="home-logo">👁</div>
   <div class="home-title" id="homeTitle">일상생활<br>체험</div>
   <div class="home-sub" id="homeSub">보건복지시설 사회복무요원 직무교육<br>노화로 인한 시각 변화를 일상 속 상황으로 체험해봅시다</div>
@@ -1555,6 +1556,7 @@ function drawSubwayMap(){
   document.title=aging?'일상생활 체험(노화)':'일상생활 체험(장애)';
   document.getElementById('homeTitle').innerHTML='일상생활 체험<br>'+(aging?'(노화)':'(장애)');
   document.getElementById('homeSub').innerHTML='보건복지시설 사회복무요원 직무교육<br>'+(aging?'노화로 인한 시각 변화를':'시각장애로 인한 시각 변화를')+' 일상 속 상황으로 체험해봅시다';
+  document.getElementById('homeBack').href=aging?'aging.html':'disability.html';
   renderChips();
 })();
 
