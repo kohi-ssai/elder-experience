@@ -26,7 +26,7 @@ object in `assets/js/guide.js` (shared) — update that text whenever an experie
   **Keep it in sync with vision.html**: the same conditions in both pages, and any
   change to a vision effect must be applied here too and checked in all three games
   (items · kiosk · subway guide/map), including that game taps and the result-modal
-  buttons still work under every condition.
+  buttons still work under every condition. On iOS Safari, never put `filter`/`backdrop-filter` on a scrolling (`overflow:auto`) element or blur-filter an overlay that moves on tap — the kiosk filter goes on the fixed `#kiosk-fx` wrapper around the scroller; otherwise tapped regions stop repainting (blank squares).
 - **hearing.html** — 지하철·병원 안내음성을 중증 난청으로 먼저 듣고 안내마다
   객관식 1 + 받아쓰기(빈칸) 1문제를 풀면 정상 청력이 열리는 흐름. 안내별 점수와
   탭(지하철/병원) 총점 표시. 음성은 `assets/audio/*_s.mp3`(중증)·`*_n.mp3`(정상).
