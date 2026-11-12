@@ -368,7 +368,7 @@ var VISION_AGING=[
     apply:function(t){return{filter:'contrast('+(100+4*t)+'%)',floaters:Math.min(1.1,t*1.5)};}}
 ];
 var VISION_GENERAL=[
-  {id:'va',name:'시력장애',group:'general',apply:function(t){return{filter:'blur('+(2+8*t)+'px) contrast('+(100-12*t)+'%)'};}},
+  {id:'va',name:'시력장애',group:'general',apply:function(t){return{filter:'blur('+(0.6+7*Math.pow(t,1.5)).toFixed(2)+'px) contrast('+(100-12*t)+'%)'};}},
   {id:'vf',name:'시야장애',group:'general',apply:function(t){return{vignette:0.10+0.62*t,vignetteSoft:true};}},
   {id:'tv',name:'터널시야',group:'general',apply:function(t){return{vignette:0.68+0.30*t,vignetteSoft:true};}},
   {id:'diplopia',name:'복시장애',group:'general',apply:function(t){return{filter:'contrast('+(100-4*t)+'%)',ghost:t};}},
@@ -480,16 +480,23 @@ function visHintText(d){
 }
 
 var focusLagTimer=null;
+var focusLagFilter=null; // 키오스크는 화면이 바뀌어 조각이 새로 만들어져도 지금 초점 상태를 이어 가도록 기억해 둔다
+// 효과를 거는 요소들: 물건 찾기=캔버스, 지하철=안내 화면, 키오스크=스크롤 상자 안의 화면 조각들
+function fxTargets(){
+  if(G.game==='kiosk'){ var c=document.getElementById('kiosk-content'); return c?[].slice.call(c.children):[]; }
+  var t=visFilterTarget(); return t?[t]:[];
+}
+function setFocusLag(filter,transition){
+  focusLagFilter=filter;
+  fxTargets().forEach(function(el){ el.style.transition=transition; el.style.filter=filter; });
+}
 function triggerFocusLag(){
   if(G.d!=='accommodative') return;
-  var target=visFilterTarget(); if(!target) return;
   var t=STAGE_T[G.s-1];
-  target.style.transition='filter .35s ease-in';
-  target.style.filter='blur('+(6+6*t)+'px) contrast('+(100-8*t)+'%)';
+  setFocusLag('blur('+(6+6*t)+'px) contrast('+(100-8*t)+'%)','filter .35s ease-in');
   setTimeout(function(){
     if(G.d!=='accommodative') return;
-    target.style.transition='filter 1.3s cubic-bezier(.2,.7,.3,1)';
-    target.style.filter='blur(0.3px) contrast(100%)';
+    setFocusLag('blur(0.3px) contrast(100%)','filter 1.3s cubic-bezier(.2,.7,.3,1)');
   },450);
 }
 function startFocusLagCycle(){
@@ -499,6 +506,7 @@ function startFocusLagCycle(){
 }
 function stopFocusLagCycle(){
   if(focusLagTimer){clearInterval(focusLagTimer);focusLagTimer=null;}
+  focusLagFilter=null;
 }
 
 function buildVisionOverlay(area){
@@ -770,6 +778,8 @@ function requestCanvasRedraw(){
   });
 }
 
+// 복시장애: 단계가 오를수록 두 번째 상이 멀어지고 진해진다. 말기에는 두 상이 같은 세기(0.5)라 어느 쪽이 '진짜'인지 가려지지 않는다
+function ghostParams(t){ return {dx:1+13*t, dy:0.5+5.5*t, alpha:0.18+0.34*t}; }
 function domSvgFx(res){
   if(res.colorblind){
     var m=document.getElementById('cbMatrix'); if(m) m.setAttribute('values',VisionFx.protanopiaSvgValues(res.colorblind));
@@ -778,8 +788,9 @@ function domSvgFx(res){
   if(res.defocus) return 'url(#presbyFilter)';
   if(res.ghost){
     var goff=document.getElementById('ghostOffset'), galpha=document.getElementById('ghostAlpha');
-    if(goff){ goff.setAttribute('dx',2+res.ghost*8); goff.setAttribute('dy',1+res.ghost*3); }
-    if(galpha) galpha.setAttribute('slope',0.2+res.ghost*0.6);
+    var gp=ghostParams(res.ghost);
+    if(goff){ goff.setAttribute('dx',gp.dx); goff.setAttribute('dy',gp.dy); }
+    if(galpha) galpha.setAttribute('slope',gp.alpha);
     return 'url(#ghostFilter)';
   }
   if(res.warp){
@@ -819,8 +830,10 @@ function applyKioskDomFx(){
   var svg=domSvgFx(res);
   if(svg) f=(f?f+' ':'')+svg;
   if(!f) f='none';
+  // 조절장애는 초점이 흐려졌다 맞춰지는 중이므로, 새로 만든 조각에도 지금 상태를 그대로 건다
+  var lag=(G.d==='accommodative' && focusLagFilter)?focusLagFilter:null;
   c.style.filter='';
-  [].slice.call(c.children).forEach(function(el){ el.style.filter=f; });
+  [].slice.call(c.children).forEach(function(el){ if(!lag) el.style.transition=''; el.style.filter=lag||f; });
 }
 
 function setPresbyNear(near){
@@ -885,11 +898,12 @@ function drawCanvasGhost(ctx,canvas){
   var t=STAGE_T[G.s-1];
   var rect=canvas.getBoundingClientRect();
   var scale=rect.width?canvas.width/rect.width:1;
-  var dx=(2+t*8)*scale, dy=(1+t*3)*scale;
+  var gp=ghostParams(t);
+  var dx=gp.dx*scale, dy=gp.dy*scale;
   var tmp=document.createElement('canvas'); tmp.width=canvas.width; tmp.height=canvas.height;
   tmp.getContext('2d').drawImage(canvas,0,0);
   ctx.save();
-  ctx.globalAlpha=Math.min(0.7,0.2+t*0.55);
+  ctx.globalAlpha=gp.alpha;
   ctx.drawImage(tmp,dx,dy);
   ctx.restore();
 }
