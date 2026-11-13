@@ -368,7 +368,7 @@ var VISION_AGING=[
     apply:function(t){return{filter:'contrast('+(100+4*t)+'%)',floaters:Math.min(1.1,t*1.5)};}}
 ];
 var VISION_GENERAL=[
-  {id:'va',name:'시력장애',group:'general',apply:function(t){return{filter:'blur('+(7.8*Math.pow(t,1.8)).toFixed(2)+'px) contrast('+(100-12*t)+'%)'};}},
+  {id:'va',name:'시력장애',group:'general',apply:function(t){return{filter:'blur('+(8.1*Math.pow(t,2.3)).toFixed(2)+'px) contrast('+(100-12*t)+'%)'};}},
   {id:'vf',name:'시야장애',group:'general',apply:function(t){return{vignette:0.10+0.62*t,vignetteSoft:true};}},
   {id:'tv',name:'터널시야',group:'general',apply:function(t){return{vignette:0.68+0.30*t,vignetteSoft:true};}},
   {id:'diplopia',name:'복시장애',group:'general',apply:function(t){return{filter:'contrast('+(100-4*t)+'%)',ghost:t};}},
